@@ -1,0 +1,56 @@
+{
+  "name": "tabemakuloo",
+  "version": "0.1.0",
+  "description": "Modern TypeScript reimplementation of taberareloo - A cross-post support tool for social bookmarks and online services",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "lint": "xo",
+    "lint:fix": "xo --fix",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "webextension-polyfill": "^0.12.0"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.268",
+    "@types/node": "^20.14.0",
+    "@types/webextension-polyfill": "^0.10.7",
+    "@vitest/coverage-v8": "^1.6.0",
+    "@vitest/ui": "^1.6.0",
+    "jsdom": "^24.1.0",
+    "typescript": "^5.5.0",
+    "vite": "^5.3.0",
+    "vite-plugin-web-extension": "^4.1.6",
+    "vitest": "^1.6.0",
+    "xo": "^0.58.0"
+  },
+  "keywords": [
+    "chrome-extension",
+    "cross-post",
+    "social-bookmarks",
+    "tumblr",
+    "twitter",
+    "typescript"
+  ],
+  "author": "dlwr",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dlwr/tabemakuloo"
+  },
+  "xo": {
+    "space": 2,
+    "semicolon": false,
+    "rules": {
+      "unicorn/filename-case": "off",
+      "@typescript-eslint/naming-convention": "off",
+      "unicorn/prefer-module": "off"
+    }
+  }
+}
