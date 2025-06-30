@@ -41,6 +41,8 @@ export enum PostType {
   VIDEO = 'video',
 }
 
+export type PostTypeString = 'link' | 'text' | 'image' | 'video' | 'photo' | 'quote'
+
 export type ContextMenuInfo = {
   menuItemId: string | number;
   pageUrl?: string;
