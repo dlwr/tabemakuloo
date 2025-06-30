@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "Tabemakuloo",
+  "version": "0.1.0",
+  "description": "Modern cross-post support tool for social bookmarks and online services",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "contextMenus",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ],
+  "background": {
+    "service_worker": "background/index.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/index.js"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup/index.html",
+    "default_title": "Tabemakuloo"
+  },
+  "options_ui": {
+    "page": "options/index.html",
+    "open_in_tab": true
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["content/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
