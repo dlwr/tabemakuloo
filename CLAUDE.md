@@ -96,3 +96,47 @@ src/
 - Claude Code can execute `git commit`, `git push`, `gh pr create` autonomously
 - No explicit permission needed for Git operations
 - Focus on clean, logical commit history
+
+## Service Implementation Plan
+
+### Phase 1: MVP (最優先実装)
+1. **Tumblr** - メイン機能、多様な投稿形式（photo, text, link, quote等）
+2. **Chrome Bookmarks** - ローカルブックマーク機能（Chrome API使用）
+3. **Pocket** - Read Later機能（シンプルなAPI、高人気）
+4. **Twitter** - ツイート投稿（標準的なOAuth 2.0実装）
+
+### Phase 2: 主要サービス
+1. **Google Bookmarks** - Googleアカウント連携
+2. **Hatena Bookmark** - 日本市場重要サービス
+3. **Pinterest** - 画像系コンテンツ投稿
+4. **Instapaper** - Read Later機能の代替
+
+### Phase 3: 拡張機能
+1. **Evernote** - ノート作成機能
+2. **Flickr** - 写真管理
+3. **Gmail** - メール送信機能
+4. **その他のニッチサービス**
+
+### サービス認証方式分類
+
+**OAuth 2.0系:** Twitter, Tumblr, Evernote, Flickr
+**API Key系:** Pocket, Instapaper, Hatena Bookmark
+**ブラウザAPI系:** Chrome Bookmarks, Google Bookmarks
+**Session/Cookie系:** 一部のレガシーサービス
+
+### 技術的考慮事項
+
+**セキュリティ:**
+- Manifest V3のCSP準拠
+- OAuth 2.0 PKCE使用
+- トークンの暗号化ストレージ
+
+**パフォーマンス:**
+- サービス並列投稿
+- 認証情報キャッシュ
+- 動的モジュール読み込み
+
+**UX改善:**
+- リアルタイム投稿状況表示
+- エラー時の分かりやすいメッセージ
+- 投稿履歴管理
