@@ -1,0 +1,29 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "taberareloo",
+    "tabemakuloo",
+    "reimplementation",
+    "photoset",
+    "jsdom",
+    "vitest",
+    "vite",
+    "webextension",
+    "tumblr",
+    "hatena",
+    "instapaper",
+    "noreply",
+    "anthropic",
+    "dlwr",
+    "typecheck",
+    "sourcemap"
+  ],
+  "ignorePaths": [
+    "node_modules",
+    "dist",
+    "coverage",
+    "*.log",
+    "package-lock.json"
+  ]
+}
