@@ -1,4 +1,6 @@
-import {describe, it, expect, vi, beforeEach} from 'vitest'
+import {
+  describe, it, expect, vi, beforeEach,
+} from 'vitest'
 import {TumblrService} from '../tumblr-service'
 import type {PostData} from '@/types'
 

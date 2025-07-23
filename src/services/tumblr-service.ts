@@ -2,7 +2,9 @@ import {BaseService} from './base-service'
 import type {PostData, PostResult, PostTypeString} from '@/types'
 
 export class TumblrService extends BaseService {
-  readonly name = 'Tumblr'
+  get name(): string {
+    return 'Tumblr'
+  }
 
   async authenticate(): Promise<boolean> {
     try {
@@ -36,7 +38,7 @@ export class TumblrService extends BaseService {
         return this.createErrorResult('Failed to post to Tumblr')
       }
 
-      const result = await response.json()
+      const result = await response.json() as {response?: {id?: string}}
       const postId = result.response?.id
 
       return this.createSuccessResult(
@@ -74,7 +76,7 @@ export class TumblrService extends BaseService {
       throw new Error('Failed to get form key')
     }
 
-    const data = await response.json()
+    const data = await response.json() as {response: {form_key: string}}
     return data.response.form_key
   }
 
@@ -103,7 +105,7 @@ export class TumblrService extends BaseService {
       case 'link': {
         return {
           ...baseData,
-          'post[one]': data.url!,
+          'post[one]': data.url,
           'post[two]': data.title,
           'post[three]': data.description ?? '',
         }
