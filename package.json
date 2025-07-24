@@ -43,16 +43,5 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/dlwr/tabemakuloo"
-  },
-  "xo": {
-    "space": 2,
-    "semicolon": false,
-    "rules": {
-      "unicorn/filename-case": "off",
-      "@typescript-eslint/naming-convention": "off",
-      "unicorn/prefer-module": "off",
-      "import/extensions": "off",
-      "no-new": "off"
-    }
   }
 }
