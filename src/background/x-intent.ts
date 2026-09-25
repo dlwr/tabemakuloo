@@ -58,18 +58,20 @@ async function waitForLoad(tabId: number): Promise<void> {
 	});
 }
 
+// X does not enable the post button while its tab is hidden, so the compose page is opened in a visible window.
 export async function postTextViaIntent(text: string): Promise<{url?: string}> {
-	const tab = await browser.tabs.create({url: `https://x.com/intent/post?text=${encodeURIComponent(text)}`, active: false});
-	const tabId = tab.id!;
+	const window = await browser.windows.create({
+		url: `https://x.com/intent/post?text=${encodeURIComponent(text)}`, type: 'popup', width: 600, height: 520, focused: true,
+	});
+	const tabId = window.tabs![0].id!;
 	await waitForLoad(tabId);
 	const [injection] = await browser.scripting.executeScript({target: {tabId}, func: clickPostButton});
 	const outcome = injection?.result as IntentOutcome | undefined;
 
 	if (outcome?.status === 'posted') {
-		await browser.tabs.remove(tabId);
+		await browser.windows.remove(window.id!);
 		return {url: outcome.url};
 	}
 
-	await browser.tabs.update(tabId, {active: true});
 	throw new Error(outcome?.status === 'login' ? 'Not logged in to X' : 'X post was not confirmed');
 }
