@@ -53,7 +53,8 @@ function requestHeaders(fetchMock: ReturnType<typeof mockTumblr>, url: string): 
 
 function postRequestBody(fetchMock: ReturnType<typeof mockTumblr>): Record<string, unknown> {
 	const call = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST');
-	return JSON.parse(call![1]!.body as string) as Record<string, unknown>;
+	const body = call![1]!.body;
+	return JSON.parse(body instanceof FormData ? body.get('json') as string : body as string) as Record<string, unknown>;
 }
 
 describe('parseTumblrSession', () => {
@@ -167,21 +168,67 @@ describe('TumblrService', () => {
 			expect(postRequestBody(fetchMock).state).toBe('published');
 		});
 
-		it('posts an image block followed by a source link for photo posts', async () => {
-			const fetchMock = mockTumblr({...loggedInRoutes, [postUrl]: created});
+		describe('photo posts', () => {
+			const photoData: PostData = {...linkData, description: '', image: 'https://example.com/image.png'};
+			const image = new Blob(['png'], {type: 'image/png'});
 
-			await service.post({...linkData, image: 'https://example.com/image.jpg'});
+			function photoService(download = vi.fn(async () => image)) {
+				return {service: new TumblrService({downloadImage: download}), download};
+			}
 
-			expect(postRequestBody(fetchMock).content).toEqual([
-				{type: 'image', media: [{url: 'https://example.com/image.jpg'}]},
-				{
-					type: 'text',
-					text: 'Test Post',
-					formatting: [{
-						type: 'link', start: 0, end: 9, url: 'https://example.com',
-					}],
-				},
-			]);
+			it('downloads the image with the page as the referrer', async () => {
+				mockTumblr({...loggedInRoutes, [postUrl]: created});
+				const {service, download} = photoService();
+
+				await service.post(photoData);
+
+				expect(download).toHaveBeenCalledWith('https://example.com/image.png', 'https://example.com');
+			});
+
+			it('uploads the downloaded image', async () => {
+				const fetchMock = mockTumblr({...loggedInRoutes, [postUrl]: created});
+
+				await photoService().service.post(photoData);
+
+				const call = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST');
+				expect((call![1]!.body as FormData).get('image0')).toBeInstanceOf(Blob);
+			});
+
+			it('posts an image block referring to the upload followed by a source link', async () => {
+				const fetchMock = mockTumblr({...loggedInRoutes, [postUrl]: created});
+
+				await photoService().service.post(photoData);
+
+				expect(postRequestBody(fetchMock).content).toEqual([
+					{type: 'image', media: [{type: 'image/png', identifier: 'image0'}]},
+					{
+						type: 'text',
+						text: 'Test Post',
+						formatting: [{
+							type: 'link', start: 0, end: 9, url: 'https://example.com',
+						}],
+					},
+				]);
+			});
+
+			it('adds the description after the source link', async () => {
+				const fetchMock = mockTumblr({...loggedInRoutes, [postUrl]: created});
+
+				await photoService().service.post({...photoData, description: 'nice'});
+
+				expect((postRequestBody(fetchMock).content as unknown[]).at(-1)).toEqual({type: 'text', text: 'nice'});
+			});
+
+			it('fails when the image cannot be downloaded', async () => {
+				mockTumblr({...loggedInRoutes, [postUrl]: created});
+				const {service} = photoService(vi.fn(async () => {
+					throw new Error('Failed to download image (404)');
+				}));
+
+				const result = await service.post(photoData);
+
+				expect(result.error).toBe('Failed to download image (404)');
+			});
 		});
 
 		it('posts a quote followed by an attributed source link and the description', async () => {
