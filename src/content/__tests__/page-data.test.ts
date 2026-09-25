@@ -1,10 +1,12 @@
-import {describe, it, expect, beforeEach} from 'vitest';
+import {
+	describe, it, expect, beforeEach,
+} from 'vitest';
 import {extractPageData} from '../page-data.js';
 
 describe('extractPageData', () => {
 	beforeEach(() => {
-		document.title = 'Page Title';
 		document.head.innerHTML = '<meta name="description" content="Meta description">';
+		document.title = 'Page Title';
 		document.body.innerHTML = '<p id="text">Selected words here</p>';
 		window.getSelection()?.removeAllRanges();
 	});
