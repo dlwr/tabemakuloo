@@ -81,12 +81,12 @@ describe('TumblrService', () => {
 			expect(service.name).toBe('Tumblr');
 		});
 
-		it.each(['text', 'link', 'photo'] as const)('supports %s posts', type => {
+		it.each(['text', 'link', 'photo', 'quote'] as const)('supports %s posts', type => {
 			expect(service.supports(type)).toBe(true);
 		});
 
-		it.each(['quote', 'video'] as const)('does not support %s posts', type => {
-			expect(service.supports(type)).toBe(false);
+		it('does not support video posts', () => {
+			expect(service.supports('video')).toBe(false);
 		});
 	});
 
@@ -184,6 +184,25 @@ describe('TumblrService', () => {
 			]);
 		});
 
+		it('posts each quoted line as a quote block followed by a source link', async () => {
+			const fetchMock = mockTumblr({...loggedInRoutes, [postUrl]: created});
+
+			await service.post({...linkData, quote: 'first line\n\nsecond line'});
+
+			expect(postRequestBody(fetchMock).content).toEqual([
+				{type: 'text', subtype: 'quote', text: 'first line'},
+				{type: 'text', subtype: 'quote', text: 'second line'},
+				{
+					type: 'text',
+					text: 'Test Post',
+					formatting: [{
+						type: 'link', start: 0, end: 9, url: 'https://example.com',
+					}],
+				},
+				{type: 'text', text: 'Test description'},
+			]);
+		});
+
 		it('fails with the HTTP status when Tumblr rejects the post', async () => {
 			mockTumblr({...loggedInRoutes, [postUrl]: {ok: false, status: 403}});
 
@@ -219,6 +238,27 @@ describe('TumblrService', () => {
 	});
 
 	describe('Post type detection', () => {
+		it('detects quote posts when text is quoted, even with an image', () => {
+			const quoteData: PostData = {
+				title: 'Quote Post',
+				url: 'https://example.com',
+				image: 'https://example.com/image.jpg',
+				quote: 'quoted text',
+			};
+
+			expect(service.detectPostType(quoteData)).toBe('quote');
+		});
+
+		it('does not detect quote posts for whitespace-only quotes', () => {
+			const data: PostData = {
+				title: 'Link Post',
+				url: 'https://example.com',
+				quote: '  ',
+			};
+
+			expect(service.detectPostType(data)).toBe('link');
+		});
+
 		it('should detect link posts', () => {
 			const linkData: PostData = {
 				title: 'Link Post',
