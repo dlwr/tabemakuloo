@@ -43,11 +43,3 @@ export enum PostType {
 }
 
 export type PostTypeString = 'link' | 'text' | 'image' | 'video' | 'photo' | 'quote';
-
-export type ContextMenuInfo = {
-	menuItemId: string | number;
-	pageUrl?: string;
-	selectionText?: string;
-	srcUrl?: string;
-	linkUrl?: string;
-};

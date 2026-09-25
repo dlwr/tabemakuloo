@@ -44,4 +44,11 @@ describe('extractPageData', () => {
 
 		expect(extractPageData().description).toBe('');
 	});
+
+	it('works when serialized and run in the page by chrome.scripting.executeScript', () => {
+		// eslint-disable-next-line no-new-func, @typescript-eslint/no-implied-eval
+		const serialized = new Function(`return (${extractPageData.toString()})()`) as typeof extractPageData;
+
+		expect(serialized().description).toBe('Meta description');
+	});
 });
