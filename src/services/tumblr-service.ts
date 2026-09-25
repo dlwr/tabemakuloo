@@ -146,8 +146,8 @@ export class TumblrService extends BaseService {
 			case 'quote': {
 				const lines = data.quote!.split('\n').map(line => line.trim()).filter(Boolean);
 				return [
-					...lines.map(text => ({type: 'text', subtype: 'quote', text})),
-					this.sourceLinkBlock(data),
+					...lines.map(text => ({type: 'text', subtype: 'indented', text})),
+					this.sourceLinkBlock(data, '— '),
 					...(data.description ? [{type: 'text', text: data.description}] : []),
 				];
 			}
@@ -174,12 +174,13 @@ export class TumblrService extends BaseService {
 		}
 	}
 
-	private sourceLinkBlock(data: PostData): NpfBlock {
+	private sourceLinkBlock(data: PostData, prefix = ''): NpfBlock {
+		const start = [...prefix].length;
 		return {
 			type: 'text',
-			text: data.title,
+			text: prefix + data.title,
 			formatting: [{
-				type: 'link', start: 0, end: [...data.title].length, url: data.url,
+				type: 'link', start, end: start + [...data.title].length, url: data.url,
 			}],
 		};
 	}
