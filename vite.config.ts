@@ -29,6 +29,7 @@ export default defineConfig({
 				background: resolve(__dirname, 'src/background/index.ts'),
 				popup: resolve(__dirname, 'src/popup/index.html'),
 				options: resolve(__dirname, 'src/options/index.html'),
+				'content-tumblr': resolve(__dirname, 'src/content/tumblr.ts'),
 			},
 			output: {
 				entryFileNames: '[name]/index.js',

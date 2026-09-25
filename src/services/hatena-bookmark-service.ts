@@ -52,7 +52,7 @@ export class HatenaBookmarkService extends BaseService {
 	}
 
 	supports(type: PostTypeString): boolean {
-		return ['link', 'quote', 'photo'].includes(type);
+		return ['link', 'quote', 'photo', 'reblog'].includes(type);
 	}
 
 	async getTags(): Promise<Record<string, number>> {

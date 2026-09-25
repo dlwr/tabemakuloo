@@ -8,6 +8,7 @@ import {
 	type PostKind,
 	type ServiceId,
 } from '@/settings/destinations.js';
+import {parseTumblrPostUrl} from '@/services/tumblr-post-url.js';
 import type {PostData, PostResult} from '@/types';
 import {takeFormDraft} from '@/utils/draft.js';
 import {localizeError} from '@/utils/error-messages.js';
@@ -21,6 +22,8 @@ class PopupUI {
 	private readonly serviceList = document.querySelector<HTMLFieldSetElement>('#services')!;
 	private readonly quoteField = document.querySelector<HTMLElement>('#quoteField')!;
 	private readonly photoKind = document.querySelector<HTMLElement>('#photoKind')!;
+	private readonly reblogKind = document.querySelector<HTMLElement>('#reblogKind')!;
+	private reblogOf?: PostData['reblogOf'];
 	private readonly photoField = document.querySelector<HTMLElement>('#photoField')!;
 	private readonly imagePreview = document.querySelector<HTMLImageElement>('#imagePreview')!;
 	private readonly quoteTextarea = document.querySelector<HTMLTextAreaElement>('#quote')!;
@@ -69,7 +72,7 @@ class PopupUI {
 			this.selectKind(draft.kind);
 		} else {
 			await this.loadCurrentPageData();
-			this.selectKind(this.quoteTextarea.value.trim() ? 'quote' : 'link');
+			this.selectKind(this.initialKind());
 		}
 
 		(this.quoteTextarea.value ? this.descriptionTextarea : this.quoteTextarea).focus();
@@ -100,7 +103,17 @@ class PopupUI {
 		this.descriptionTextarea.value = data.description ?? '';
 		this.imagePreview.src = data.image ?? '';
 		this.photoKind.hidden = !data.image;
+		this.reblogOf = data.reblogOf ?? parseTumblrPostUrl(data.url);
+		this.reblogKind.hidden = !this.reblogOf;
 		this.tagsInput.value = data.tags?.join(', ') ?? '';
+	}
+
+	private initialKind(): PostKind {
+		if (this.quoteTextarea.value.trim()) {
+			return 'quote';
+		}
+
+		return this.reblogOf ? 'reblog' : 'link';
 	}
 
 	private setPage(title: string, url: string): void {
@@ -282,6 +295,7 @@ class PopupUI {
 			description: this.descriptionTextarea.value,
 			quote: this.selectedKind() === 'quote' ? this.quoteTextarea.value : '',
 			image: this.selectedKind() === 'photo' ? this.imagePreview.getAttribute('src') ?? undefined : undefined,
+			reblogOf: this.selectedKind() === 'reblog' ? this.reblogOf : undefined,
 			tags: this.tagsInput.value.split(',').map(tag => tag.trim()).filter(Boolean),
 		};
 	}
