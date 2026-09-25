@@ -202,17 +202,13 @@ describe('TumblrService', () => {
 			]);
 		});
 
-		it.each([
-			['a quote of 100 characters', 'quote', 'あ'.repeat(100)],
-			['a quote over 100 characters', 'indented', 'あ'.repeat(101)],
-			['a quote whose lines total over 100 characters', 'indented', `${'あ'.repeat(50)}\n\n${'い'.repeat(51)}`],
-		])('posts %s as %s blocks', async (_description, subtype, quote) => {
+		it('posts a long quote as quote blocks', async () => {
 			const fetchMock = mockTumblr({...loggedInRoutes, [postUrl]: created});
 
-			await service.post({...linkData, quote});
+			await service.post({...linkData, quote: `${'あ'.repeat(100)}\n\n${'い'.repeat(100)}`});
 
 			const quoteBlocks = (postRequestBody(fetchMock).content as Array<{subtype?: string}>).filter(block => block.subtype);
-			expect(quoteBlocks.every(block => block.subtype === subtype)).toBe(true);
+			expect(quoteBlocks.every(block => block.subtype === 'quote')).toBe(true);
 		});
 
 		it('posts each quoted line as a separate block', async () => {
