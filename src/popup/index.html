@@ -106,6 +106,24 @@
       cursor: pointer;
     }
     #postBtn:disabled { opacity: 0.5; cursor: default; }
+    .choices {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 14px;
+      margin: 0 0 10px;
+      padding: 0;
+      border: none;
+    }
+    .choices legend {
+      float: left;
+      width: 4em;
+      padding: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .choices label { display: inline-flex; align-items: center; gap: 4px; }
+    .choices input { margin: 0; accent-color: var(--focus); }
+    [hidden] { display: none !important; }
   </style>
 </head>
 <body>
@@ -114,9 +132,19 @@
     <span id="url"></span>
   </div>
 
-  <div class="field">
+  <fieldset class="choices" id="kinds">
+    <legend>形式</legend>
+    <label><input type="radio" name="kind" value="quote">引用</label>
+    <label><input type="radio" name="kind" value="link">リンク</label>
+  </fieldset>
+
+  <fieldset class="choices" id="services">
+    <legend>投稿先</legend>
+  </fieldset>
+
+  <div class="field" id="quoteField">
     <label for="quote">引用</label>
-    <textarea id="quote" placeholder="ページで選択したテキストが入ります。空ならリンクとして投稿"></textarea>
+    <textarea id="quote" placeholder="ページで選択したテキストが入ります"></textarea>
   </div>
 
   <div class="field">
@@ -131,7 +159,7 @@
 
   <div class="actions">
     <div id="status" role="status"></div>
-    <button id="postBtn">Tumblr に投稿</button>
+    <button id="postBtn">投稿</button>
   </div>
 
   <script type="module" src="index.ts"></script>
