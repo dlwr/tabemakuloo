@@ -2,6 +2,7 @@ import {BaseService} from './base-service.js';
 import type {PostData, PostResult, PostTypeString} from '@/types';
 
 const origin = 'https://www.tumblr.com';
+const maxLargeQuoteLength = 100;
 
 type TumblrSession = {
 	apiToken: string;
@@ -145,8 +146,9 @@ export class TumblrService extends BaseService {
 		switch (this.detectPostType(data)) {
 			case 'quote': {
 				const lines = data.quote!.split('\n').map(line => line.trim()).filter(Boolean);
+				const subtype = [...lines.join('')].length <= maxLargeQuoteLength ? 'quote' : 'indented';
 				return [
-					...lines.map(text => ({type: 'text', subtype: 'indented', text})),
+					...lines.map(text => ({type: 'text', subtype, text})),
 					this.sourceLinkBlock(data, '— '),
 					...(data.description ? [{type: 'text', text: data.description}] : []),
 				];
