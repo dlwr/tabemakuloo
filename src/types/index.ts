@@ -6,6 +6,7 @@ export type PostData = {
 	image?: string;
 	quote?: string;
 	reblogOf?: {blog: string; id: string};
+	xText?: string;
 };
 
 export type Service = {

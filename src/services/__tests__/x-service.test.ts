@@ -1,4 +1,6 @@
-import {describe, it, expect, vi} from 'vitest';
+import {
+	describe, it, expect, vi,
+} from 'vitest';
 import {XService} from '../x-service.js';
 import type {PostData} from '@/types';
 
