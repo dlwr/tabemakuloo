@@ -20,12 +20,12 @@ function memoryStorage(initial: Record<string, unknown> = {}): StorageArea & {da
 }
 
 describe('servicesSupporting', () => {
-	it('lists Tumblr and Hatena Bookmark for quote posts', () => {
-		expect(servicesSupporting('quote')).toEqual(['tumblr', 'hatena']);
+	it('lists Tumblr, Hatena Bookmark and X for quote posts', () => {
+		expect(servicesSupporting('quote')).toEqual(['tumblr', 'hatena', 'x']);
 	});
 
-	it('lists Tumblr and Hatena Bookmark for link posts', () => {
-		expect(servicesSupporting('link')).toEqual(['tumblr', 'hatena']);
+	it('lists Tumblr, Hatena Bookmark and X for link posts', () => {
+		expect(servicesSupporting('link')).toEqual(['tumblr', 'hatena', 'x']);
 	});
 });
 
