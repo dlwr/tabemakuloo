@@ -18,6 +18,14 @@ type UserInfoResponse = {
 	};
 };
 
+type BlogPostsResponse = {
+	response: {
+		blog: {uuid: string};
+
+		posts: Array<{id_string: string; reblog_key: string}>;
+	};
+};
+
 type CreatePostResponse = {
 	response: {
 		id_string: string;
@@ -85,10 +93,12 @@ export class TumblrService extends BaseService {
 			const blogName = await this.getPrimaryBlogName(session);
 
 			const image = this.detectPostType(data) === 'photo' ? await this.downloadImage(data.image!, data.url) : undefined;
+			const parent = data.reblogOf ? await this.getReblogParent(session, data.reblogOf) : {};
 			const json = JSON.stringify({
 				content: this.buildContent(data, image),
 				tags: data.tags?.join(',') ?? '',
 				state: 'published',
+				...parent,
 			});
 
 			const response = await fetch(`${origin}/api/v2/blog/${blogName}/posts`, {
@@ -114,10 +124,14 @@ export class TumblrService extends BaseService {
 	}
 
 	supports(type: PostTypeString): boolean {
-		return ['text', 'link', 'photo', 'quote'].includes(type);
+		return ['text', 'link', 'photo', 'quote', 'reblog'].includes(type);
 	}
 
 	detectPostType(data: PostData): PostTypeString {
+		if (data.reblogOf) {
+			return 'reblog';
+		}
+
 		if (data.quote?.trim()) {
 			return 'quote';
 		}
@@ -160,6 +174,27 @@ export class TumblrService extends BaseService {
 		return primary.name;
 	}
 
+	private async getReblogParent(session: TumblrSession, {blog, id}: {blog: string; id: string}): Promise<Record<string, string>> {
+		const response = await fetch(`${origin}/api/v2/blog/${blog}/posts?id=${id}`, {
+			credentials: 'include',
+			headers: this.apiHeaders(session),
+		});
+		if (!response.ok) {
+			throw new Error(`Tumblr post to reblog not found (${response.status})`);
+		}
+
+		const {blog: parentBlog, posts} = (await response.json() as BlogPostsResponse).response;
+		const post = posts.find(candidate => candidate.id_string === id);
+		if (!post) {
+			throw new Error('Tumblr post to reblog not found');
+		}
+
+		return {
+			// eslint-disable-next-line @typescript-eslint/naming-convention
+			parent_tumblelog_uuid: parentBlog.uuid, parent_post_id: id, reblog_key: post.reblog_key,
+		};
+	}
+
 	private apiHeaders(session: TumblrSession): Record<string, string> {
 		return {authorization: `Bearer ${session.apiToken}`};
 	}
@@ -188,6 +223,10 @@ export class TumblrService extends BaseService {
 					this.sourceLinkBlock(data),
 					...(data.description ? [{type: 'text', text: data.description}] : []),
 				];
+			}
+
+			case 'reblog': {
+				return data.description ? [{type: 'text', text: data.description}] : [];
 			}
 
 			case 'link': {

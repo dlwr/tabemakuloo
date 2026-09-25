@@ -5,6 +5,7 @@ export type PostData = {
 	tags?: string[];
 	image?: string;
 	quote?: string;
+	reblogOf?: {blog: string; id: string};
 };
 
 export type Service = {
@@ -42,4 +43,4 @@ export enum PostType {
 	VIDEO = 'video',
 }
 
-export type PostTypeString = 'link' | 'text' | 'image' | 'video' | 'photo' | 'quote';
+export type PostTypeString = 'link' | 'text' | 'image' | 'video' | 'photo' | 'quote' | 'reblog';
