@@ -79,6 +79,8 @@
     textarea { resize: vertical; }
     #quote { min-height: 96px; }
     #description { min-height: 44px; }
+    #xText { min-height: 72px; }
+    #xTextLength.over { color: var(--error); }
     #imagePreview {
       display: block;
       max-width: 100%;
@@ -171,6 +173,11 @@
   <div class="field">
     <label for="description">コメント</label>
     <textarea id="description"></textarea>
+  </div>
+
+  <div class="field" id="xTextField" hidden>
+    <label for="xText">X に投稿する本文 <span id="xTextLength"></span></label>
+    <textarea id="xText"></textarea>
   </div>
 
   <div class="field">

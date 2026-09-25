@@ -2,9 +2,11 @@ import browser from 'webextension-polyfill';
 import {connectReloadServer} from './reload-server.js';
 import {postToServices} from './post-to-services.js';
 import {downloadImage} from './download-image.js';
+import {postTextViaIntent} from './x-intent.js';
 import {registerContextMenu} from './context-menu.js';
 import {HatenaBookmarkService} from '@/services/hatena-bookmark-service.js';
 import {TumblrService} from '@/services/tumblr-service.js';
+import {XService} from '@/services/x-service.js';
 import {loadUsedTags, recordUsedTags} from '@/settings/used-tags.js';
 import {mergeTagCounts} from '@/utils/tag-completion.js';
 import type {PostData, PostResult} from '@/types';
@@ -12,6 +14,7 @@ import type {PostData, PostResult} from '@/types';
 class BackgroundService {
 	private readonly tumblrService: TumblrService;
 	private readonly hatenaService = new HatenaBookmarkService();
+	private readonly xService = new XService({postText: postTextViaIntent});
 
 	constructor() {
 		this.tumblrService = new TumblrService({downloadImage});
@@ -56,7 +59,7 @@ class BackgroundService {
 	}
 
 	private async post(postData: PostData, services: string[]): Promise<PostResult[]> {
-		const results = await postToServices(postData, services, {tumblr: this.tumblrService, hatena: this.hatenaService});
+		const results = await postToServices(postData, services, {tumblr: this.tumblrService, hatena: this.hatenaService, x: this.xService});
 		if (results.some(result => result.success) && postData.tags?.length) {
 			await recordUsedTags(browser.storage.local, postData.tags);
 		}
