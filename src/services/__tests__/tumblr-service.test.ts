@@ -172,7 +172,11 @@ describe('TumblrService', () => {
 			const photoData: PostData = {...linkData, description: '', image: 'https://example.com/image.png'};
 			const image = new Blob(['png'], {type: 'image/png'});
 
-			function photoService(download = vi.fn(async () => image)) {
+			const failedDownload = async (_url: string, _referrer: string): Promise<Blob> => {
+				throw new Error('Failed to download image (404)');
+			};
+
+			function photoService(download = vi.fn(async (_url: string, _referrer: string) => image)) {
 				return {service: new TumblrService({downloadImage: download}), download};
 			}
 
@@ -221,9 +225,7 @@ describe('TumblrService', () => {
 
 			it('fails when the image cannot be downloaded', async () => {
 				mockTumblr({...loggedInRoutes, [postUrl]: created});
-				const {service} = photoService(vi.fn(async () => {
-					throw new Error('Failed to download image (404)');
-				}));
+				const {service} = photoService(vi.fn(failedDownload));
 
 				const result = await service.post(photoData);
 
