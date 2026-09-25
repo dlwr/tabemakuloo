@@ -4,7 +4,7 @@
   "description": "Modern TypeScript reimplementation of taberareloo - A cross-post support tool for social bookmarks and online services",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/dev.ts",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest",
@@ -21,6 +21,7 @@
     "@types/chrome": "^0.0.268",
     "@types/node": "^20.14.0",
     "@types/webextension-polyfill": "^0.10.7",
+    "@types/ws": "^8.18.1",
     "@vitest/coverage-v8": "^1.6.0",
     "@vitest/ui": "^1.6.0",
     "jsdom": "^24.1.3",
@@ -28,6 +29,7 @@
     "vite": "^5.3.0",
     "vite-plugin-web-extension": "^4.1.6",
     "vitest": "^1.6.0",
+    "ws": "^8.21.3",
     "xo": "^0.58.0"
   },
   "keywords": [

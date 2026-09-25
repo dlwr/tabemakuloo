@@ -27,11 +27,12 @@
       "@/utils/*": ["./src/utils/*"],
       "@/services/*": ["./src/services/*"]
     },
-    "types": ["chrome", "node", "webextension-polyfill"]
+    "types": ["chrome", "node", "webextension-polyfill", "vite/client"]
   },
   "include": [
     "src/**/*",
     "vite.config.ts",
+    "scripts/**/*",
     "vitest.config.ts"
   ],
   "exclude": [
