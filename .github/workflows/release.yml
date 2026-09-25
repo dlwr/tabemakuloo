@@ -32,3 +32,12 @@ jobs:
       - run: gh release create "$GITHUB_REF_NAME" "tabemakuloo-${GITHUB_REF_NAME}.zip" --generate-notes
         env:
           GH_TOKEN: ${{ github.token }}
+      - name: Upload to the Chrome Web Store and submit for review
+        if: env.REFRESH_TOKEN != ''
+        run: npx chrome-webstore-upload-cli@4 --source "tabemakuloo-${GITHUB_REF_NAME}.zip"
+        env:
+          EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+          PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
+          CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
