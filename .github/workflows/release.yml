@@ -1,0 +1,34 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Check the tag matches the versions
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          manifest="$(node -p "require('./public/manifest.json').version")"
+          package="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$manifest" ] || [ "$tag" != "$package" ]; then
+            echo "tag $tag, manifest $manifest, package.json $package"
+            exit 1
+          fi
+      - run: npm ci
+      - run: npx vitest run
+      - run: npm run build
+      - run: cd dist && zip -r "../tabemakuloo-${GITHUB_REF_NAME}.zip" . -x '*.map'
+      - run: gh release create "$GITHUB_REF_NAME" "tabemakuloo-${GITHUB_REF_NAME}.zip" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
