@@ -184,19 +184,19 @@ describe('TumblrService', () => {
 			]);
 		});
 
-		it('posts each quoted line as a quote block followed by a source link', async () => {
+		it('posts each quoted line as an indented block followed by an attributed source link', async () => {
 			const fetchMock = mockTumblr({...loggedInRoutes, [postUrl]: created});
 
 			await service.post({...linkData, quote: 'first line\n\nsecond line'});
 
 			expect(postRequestBody(fetchMock).content).toEqual([
-				{type: 'text', subtype: 'quote', text: 'first line'},
-				{type: 'text', subtype: 'quote', text: 'second line'},
+				{type: 'text', subtype: 'indented', text: 'first line'},
+				{type: 'text', subtype: 'indented', text: 'second line'},
 				{
 					type: 'text',
-					text: 'Test Post',
+					text: '— Test Post',
 					formatting: [{
-						type: 'link', start: 0, end: 9, url: 'https://example.com',
+						type: 'link', start: 2, end: 11, url: 'https://example.com',
 					}],
 				},
 				{type: 'text', text: 'Test description'},
