@@ -84,7 +84,11 @@ describe('loadDefaultDestinations', () => {
 describe('saveDefaultDestinations', () => {
 	it('can be loaded back', async () => {
 		const storage = memoryStorage();
-		await saveDefaultDestinations(storage, {quote: [], photo: ['hatena'], reblog: [], link: ['tumblr']});
-		expect(await loadDefaultDestinations(storage)).toEqual({quote: [], photo: ['hatena'], reblog: [], link: ['tumblr']});
+		await saveDefaultDestinations(storage, {
+			quote: [], photo: ['hatena'], reblog: [], link: ['tumblr'],
+		});
+		expect(await loadDefaultDestinations(storage)).toEqual({
+			quote: [], photo: ['hatena'], reblog: [], link: ['tumblr'],
+		});
 	});
 });

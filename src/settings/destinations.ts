@@ -1,4 +1,4 @@
-export type PostKind = 'quote' | 'photo' | 'link';
+export type PostKind = 'quote' | 'photo' | 'reblog' | 'link';
 export type ServiceId = 'tumblr' | 'hatena';
 export type DefaultDestinations = Record<PostKind, ServiceId[]>;
 
@@ -7,7 +7,7 @@ export type StorageArea = {
 	set(items: Record<string, unknown>): Promise<void>;
 };
 
-export const postKinds: PostKind[] = ['quote', 'photo', 'link'];
+export const postKinds: PostKind[] = ['quote', 'photo', 'reblog', 'link'];
 
 export const serviceNames: Record<ServiceId, string> = {
 	tumblr: 'Tumblr',
@@ -15,13 +15,14 @@ export const serviceNames: Record<ServiceId, string> = {
 };
 
 const serviceKinds: Record<ServiceId, PostKind[]> = {
-	tumblr: ['quote', 'photo', 'link'],
-	hatena: ['quote', 'photo', 'link'],
+	tumblr: ['quote', 'photo', 'reblog', 'link'],
+	hatena: ['quote', 'photo', 'reblog', 'link'],
 };
 
 const initialDefaultDestinations: DefaultDestinations = {
 	quote: ['tumblr'],
 	photo: ['tumblr'],
+	reblog: ['tumblr'],
 	link: ['hatena'],
 };
 
@@ -39,7 +40,9 @@ export async function loadDefaultDestinations(storage: StorageArea): Promise<Def
 		return (stored?.[kind] ?? initialDefaultDestinations[kind]).filter((service): service is ServiceId => supported.includes(service as ServiceId));
 	};
 
-	return {quote: supportedOnly('quote'), photo: supportedOnly('photo'), link: supportedOnly('link')};
+	return {
+		quote: supportedOnly('quote'), photo: supportedOnly('photo'), reblog: supportedOnly('reblog'), link: supportedOnly('link'),
+	};
 }
 
 export async function saveDefaultDestinations(storage: StorageArea, destinations: DefaultDestinations): Promise<void> {
