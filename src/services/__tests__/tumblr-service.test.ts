@@ -113,8 +113,7 @@ describe('TumblrService', () => {
 		const postUrl = 'POST https://www.tumblr.com/api/v2/blog/main-blog/posts';
 		const created: Route = {
 			ok: true, status: 201,
-			// eslint-disable-next-line @typescript-eslint/naming-convention
-			body: {response: {id_string: '12345'}},
+			body: {response: {id: '12345', state: 'published'}},
 		};
 
 		const linkData: PostData = {
