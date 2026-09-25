@@ -1,7 +1,7 @@
 import {
 	describe, it, expect, vi, beforeEach, afterEach,
 } from 'vitest';
-import {connectDevReloader} from '../dev-reload.js';
+import {connectReloadServer} from '../reload-server.js';
 
 class FakeWebSocket extends EventTarget {
 	static instances: FakeWebSocket[] = [];
@@ -16,7 +16,7 @@ class FakeWebSocket extends EventTarget {
 	}
 }
 
-describe('connectDevReloader', () => {
+describe('connectReloadServer', () => {
 	const reload = vi.fn();
 
 	beforeEach(() => {
@@ -32,13 +32,13 @@ describe('connectDevReloader', () => {
 	});
 
 	it('connects to the dev server', () => {
-		connectDevReloader(reload);
+		connectReloadServer(reload);
 
 		expect(FakeWebSocket.instances[0].url).toBe('ws://localhost:35729');
 	});
 
 	it('reloads the extension when the dev server says reload', () => {
-		connectDevReloader(reload);
+		connectReloadServer(reload);
 
 		FakeWebSocket.instances[0].receive('reload');
 
@@ -46,7 +46,7 @@ describe('connectDevReloader', () => {
 	});
 
 	it('ignores keepalive pings', () => {
-		connectDevReloader(reload);
+		connectReloadServer(reload);
 
 		FakeWebSocket.instances[0].receive('ping');
 
@@ -54,7 +54,7 @@ describe('connectDevReloader', () => {
 	});
 
 	it('reconnects after the connection closes', () => {
-		connectDevReloader(reload);
+		connectReloadServer(reload);
 
 		FakeWebSocket.instances[0].dispatchEvent(new Event('close'));
 		vi.advanceTimersByTime(1000);
