@@ -1,5 +1,5 @@
 import browser from 'webextension-polyfill';
-import {extractPageData} from './page-data.js';
+import {extractPageData} from '@/content/page-data.js';
 import {
 	loadDefaultDestinations,
 	serviceNames,
