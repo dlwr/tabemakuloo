@@ -9,6 +9,7 @@ import {
 	type ServiceId,
 } from '@/settings/destinations.js';
 import {parseTumblrPostUrl} from '@/services/tumblr-post-url.js';
+import {buildTextForX, weightedLength} from '@/services/x-text.js';
 import type {PostData, PostResult} from '@/types';
 import {takeFormDraft} from '@/utils/draft.js';
 import {localizeError} from '@/utils/error-messages.js';
@@ -24,6 +25,10 @@ class PopupUI {
 	private readonly photoKind = document.querySelector<HTMLElement>('#photoKind')!;
 	private readonly reblogKind = document.querySelector<HTMLElement>('#reblogKind')!;
 	private reblogOf?: PostData['reblogOf'];
+	private readonly xTextField = document.querySelector<HTMLElement>('#xTextField')!;
+	private readonly xTextarea = document.querySelector<HTMLTextAreaElement>('#xText')!;
+	private readonly xTextLength = document.querySelector<HTMLElement>('#xTextLength')!;
+	private xTextEdited = false;
 	private readonly photoField = document.querySelector<HTMLElement>('#photoField')!;
 	private readonly imagePreview = document.querySelector<HTMLImageElement>('#imagePreview')!;
 	private readonly quoteTextarea = document.querySelector<HTMLTextAreaElement>('#quote')!;
@@ -49,6 +54,16 @@ class PopupUI {
 				this.selectKind(input.value as PostKind);
 			});
 		}
+
+		this.serviceList.addEventListener('change', this.updateTextForX.bind(this));
+		for (const field of [this.titleInput, this.quoteTextarea, this.descriptionTextarea]) {
+			field.addEventListener('input', this.updateTextForX.bind(this));
+		}
+
+		this.xTextarea.addEventListener('input', () => {
+			this.xTextEdited = true;
+			this.updateLengthOfTextForX();
+		});
 
 		this.tagsInput.addEventListener('input', () => {
 			this.showSuggestions(suggestTags(this.tagsInput.value, this.tagCandidates));
@@ -131,6 +146,22 @@ class PopupUI {
 		this.quoteField.hidden = kind !== 'quote';
 		this.photoField.hidden = kind !== 'photo';
 		this.renderServices(kind);
+		this.updateTextForX();
+	}
+
+	private updateTextForX(): void {
+		this.xTextField.hidden = !this.selectedServices().includes('x');
+		if (!this.xTextEdited) {
+			this.xTextarea.value = buildTextForX({...this.collectFormData(), xText: undefined});
+		}
+
+		this.updateLengthOfTextForX();
+	}
+
+	private updateLengthOfTextForX(): void {
+		const length = weightedLength(this.xTextarea.value);
+		this.xTextLength.textContent = `${length}/280`;
+		this.xTextLength.classList.toggle('over', length > 280);
 	}
 
 	private renderServices(kind: PostKind): void {
@@ -296,6 +327,7 @@ class PopupUI {
 			quote: this.selectedKind() === 'quote' ? this.quoteTextarea.value : '',
 			image: this.selectedKind() === 'photo' ? this.imagePreview.getAttribute('src') ?? undefined : undefined,
 			reblogOf: this.selectedKind() === 'reblog' ? this.reblogOf : undefined,
+			xText: this.xTextField.hidden ? undefined : this.xTextarea.value,
 			tags: this.tagsInput.value.split(',').map(tag => tag.trim()).filter(Boolean),
 		};
 	}
