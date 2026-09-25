@@ -184,14 +184,13 @@ describe('TumblrService', () => {
 			]);
 		});
 
-		it('posts each quoted line as an indented block followed by an attributed source link', async () => {
+		it('posts a quote followed by an attributed source link and the description', async () => {
 			const fetchMock = mockTumblr({...loggedInRoutes, [postUrl]: created});
 
-			await service.post({...linkData, quote: 'first line\n\nsecond line'});
+			await service.post({...linkData, quote: 'short quote'});
 
 			expect(postRequestBody(fetchMock).content).toEqual([
-				{type: 'text', subtype: 'indented', text: 'first line'},
-				{type: 'text', subtype: 'indented', text: 'second line'},
+				{type: 'text', subtype: 'quote', text: 'short quote'},
 				{
 					type: 'text',
 					text: '— Test Post',
@@ -201,6 +200,30 @@ describe('TumblrService', () => {
 				},
 				{type: 'text', text: 'Test description'},
 			]);
+		});
+
+		it.each([
+			['a quote of 100 characters', 'quote', 'あ'.repeat(100)],
+			['a quote over 100 characters', 'indented', 'あ'.repeat(101)],
+			['a quote whose lines total over 100 characters', 'indented', `${'あ'.repeat(50)}\n\n${'い'.repeat(51)}`],
+		])('posts %s as %s blocks', async (_description, subtype, quote) => {
+			const fetchMock = mockTumblr({...loggedInRoutes, [postUrl]: created});
+
+			await service.post({...linkData, quote});
+
+			const quoteBlocks = (postRequestBody(fetchMock).content as Array<{subtype?: string}>).filter(block => block.subtype);
+			expect(quoteBlocks.every(block => block.subtype === subtype)).toBe(true);
+		});
+
+		it('posts each quoted line as a separate block', async () => {
+			const fetchMock = mockTumblr({...loggedInRoutes, [postUrl]: created});
+
+			await service.post({...linkData, quote: 'first line\n\nsecond line'});
+
+			const texts = (postRequestBody(fetchMock).content as Array<{subtype?: string; text: string}>)
+				.filter(block => block.subtype)
+				.map(block => block.text);
+			expect(texts).toEqual(['first line', 'second line']);
 		});
 
 		it('fails with the HTTP status when Tumblr rejects the post', async () => {
