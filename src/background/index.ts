@@ -2,11 +2,15 @@ import browser from 'webextension-polyfill';
 import {connectReloadServer} from './reload-server.js';
 import {postToServices} from './post-to-services.js';
 import {registerContextMenu} from './context-menu.js';
+import {HatenaBookmarkService} from '@/services/hatena-bookmark-service.js';
 import {TumblrService} from '@/services/tumblr-service.js';
+import {loadUsedTags, recordUsedTags} from '@/settings/used-tags.js';
+import {mergeTagCounts} from '@/utils/tag-completion.js';
 import type {PostData, PostResult} from '@/types';
 
 class BackgroundService {
 	private readonly tumblrService: TumblrService;
+	private readonly hatenaService = new HatenaBookmarkService();
 
 	constructor() {
 		this.tumblrService = new TumblrService();
@@ -25,6 +29,10 @@ class BackgroundService {
 			switch (message_.type) {
 				case 'POST_TO_SERVICES': {
 					return await this.handlePostToServices(message_.data as {postData: PostData; services: string[]});
+				}
+
+				case 'GET_TAG_CANDIDATES': {
+					return await this.tagCandidates();
 				}
 
 				case 'CHECK_AUTH': {
@@ -47,7 +55,33 @@ class BackgroundService {
 	}
 
 	private async post(postData: PostData, services: string[]): Promise<PostResult[]> {
-		return postToServices(postData, services, {tumblr: this.tumblrService});
+		const results = await postToServices(postData, services, {tumblr: this.tumblrService, hatena: this.hatenaService});
+		if (results.some(result => result.success) && postData.tags?.length) {
+			await recordUsedTags(browser.storage.local, postData.tags);
+		}
+
+		return results;
+	}
+
+	private async tagCandidates(): Promise<Record<string, number>> {
+		return mergeTagCounts(await this.hatenaTags(), await loadUsedTags(browser.storage.local));
+	}
+
+	private async hatenaTags(): Promise<Record<string, number>> {
+		const cacheKey = 'hatenaTags';
+		const cached = await browser.storage.session.get(cacheKey);
+		if (cached[cacheKey]) {
+			return cached[cacheKey] as Record<string, number>;
+		}
+
+		try {
+			const tags = await this.hatenaService.getTags();
+			await browser.storage.session.set({[cacheKey]: tags});
+			return tags;
+		} catch (error) {
+			console.error('Failed to load Hatena tags:', error);
+			return {};
+		}
 	}
 
 	private async handleCheckAuth(data: {service: string}): Promise<{authenticated: boolean}> {
