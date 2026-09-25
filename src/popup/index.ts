@@ -3,12 +3,14 @@ import type {PostData} from '@/types';
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 class PopupUI {
+	private readonly quoteTextarea: HTMLTextAreaElement;
 	private readonly titleInput: HTMLInputElement;
 	private readonly descriptionTextarea: HTMLTextAreaElement;
 	private readonly tagsInput: HTMLInputElement;
 	private readonly postButton: HTMLButtonElement;
 
 	constructor() {
+		this.quoteTextarea = document.querySelector('#quote')!;
 		this.titleInput = document.querySelector('#title')!;
 		this.descriptionTextarea = document.querySelector('#description')!;
 		this.tagsInput = document.querySelector('#tags')!;
@@ -45,6 +47,7 @@ class PopupUI {
 	}
 
 	private populateForm(data: PostData): void {
+		this.quoteTextarea.value = data.quote ?? '';
 		this.titleInput.value = data.title ?? '';
 		this.descriptionTextarea.value = data.description ?? '';
 	}
@@ -115,6 +118,7 @@ class PopupUI {
 			title: this.titleInput.value,
 			url: currentUrl,
 			description: this.descriptionTextarea.value,
+			quote: this.quoteTextarea.value,
 			tags: this.tagsInput.value.split(',').map(tag => tag.trim()).filter(Boolean),
 		};
 	}
