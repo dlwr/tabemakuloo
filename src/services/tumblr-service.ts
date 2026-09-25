@@ -21,14 +21,13 @@ type UserInfoResponse = {
 type BlogPostsResponse = {
 	response: {
 		blog: {uuid: string};
-
 		posts: Array<{id_string: string; reblog_key: string}>;
 	};
 };
 
 type CreatePostResponse = {
 	response: {
-		id_string: string;
+		id: string;
 	};
 };
 
@@ -117,7 +116,7 @@ export class TumblrService extends BaseService {
 			}
 
 			const result = await response.json() as CreatePostResponse;
-			return this.createSuccessResult(`${origin}/${blogName}/${result.response.id_string}`);
+			return this.createSuccessResult(`${origin}/${blogName}/${result.response.id}`);
 		} catch (error) {
 			return this.createErrorResult(error instanceof Error ? error.message : 'Unknown error');
 		}
