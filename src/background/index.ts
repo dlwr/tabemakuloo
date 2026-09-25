@@ -1,6 +1,7 @@
 import browser from 'webextension-polyfill';
 import {connectReloadServer} from './reload-server.js';
 import {postToServices} from './post-to-services.js';
+import {downloadImage} from './download-image.js';
 import {registerContextMenu} from './context-menu.js';
 import {HatenaBookmarkService} from '@/services/hatena-bookmark-service.js';
 import {TumblrService} from '@/services/tumblr-service.js';
@@ -13,7 +14,7 @@ class BackgroundService {
 	private readonly hatenaService = new HatenaBookmarkService();
 
 	constructor() {
-		this.tumblrService = new TumblrService();
+		this.tumblrService = new TumblrService({downloadImage});
 		this.init();
 	}
 
