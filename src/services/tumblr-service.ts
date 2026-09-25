@@ -91,10 +91,14 @@ export class TumblrService extends BaseService {
 	}
 
 	supports(type: PostTypeString): boolean {
-		return ['text', 'link', 'photo'].includes(type);
+		return ['text', 'link', 'photo', 'quote'].includes(type);
 	}
 
 	detectPostType(data: PostData): PostTypeString {
+		if (data.quote?.trim()) {
+			return 'quote';
+		}
+
 		if (data.image) {
 			return 'photo';
 		}
@@ -139,16 +143,19 @@ export class TumblrService extends BaseService {
 
 	private buildContent(data: PostData): NpfBlock[] {
 		switch (this.detectPostType(data)) {
+			case 'quote': {
+				const lines = data.quote!.split('\n').map(line => line.trim()).filter(Boolean);
+				return [
+					...lines.map(text => ({type: 'text', subtype: 'quote', text})),
+					this.sourceLinkBlock(data),
+					...(data.description ? [{type: 'text', text: data.description}] : []),
+				];
+			}
+
 			case 'photo': {
 				return [
 					{type: 'image', media: [{url: data.image}]},
-					{
-						type: 'text',
-						text: data.title,
-						formatting: [{
-							type: 'link', start: 0, end: [...data.title].length, url: data.url,
-						}],
-					},
+					this.sourceLinkBlock(data),
 				];
 			}
 
@@ -165,5 +172,15 @@ export class TumblrService extends BaseService {
 				];
 			}
 		}
+	}
+
+	private sourceLinkBlock(data: PostData): NpfBlock {
+		return {
+			type: 'text',
+			text: data.title,
+			formatting: [{
+				type: 'link', start: 0, end: [...data.title].length, url: data.url,
+			}],
+		};
 	}
 }
