@@ -1,5 +1,5 @@
 import browser from 'webextension-polyfill';
-import {extractPageData} from './page-data.js';
+import {extractPageData} from '@/content/page-data.js';
 import {
 	loadDefaultDestinations,
 	serviceNames,
@@ -9,10 +9,8 @@ import {
 	type ServiceId,
 } from '@/settings/destinations.js';
 import type {PostData, PostResult} from '@/types';
-
-const errorMessages: Record<string, string> = {
-	'Not logged in to Tumblr': 'Tumblr にログインしていません',
-};
+import {takeFormDraft} from '@/utils/draft.js';
+import {localizeError} from '@/utils/error-messages.js';
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 class PopupUI {
@@ -47,9 +45,16 @@ class PopupUI {
 			}
 		});
 
-		const [destinations] = await Promise.all([loadDefaultDestinations(browser.storage.sync), this.loadCurrentPageData()]);
+		const [destinations, draft] = await Promise.all([loadDefaultDestinations(browser.storage.sync), takeFormDraft(browser.storage.session)]);
 		this.defaultDestinations = destinations;
-		this.selectKind(this.quoteTextarea.value.trim() ? 'quote' : 'link');
+		if (draft) {
+			this.fill(draft.postData);
+			this.selectKind(draft.kind);
+		} else {
+			await this.loadCurrentPageData();
+			this.selectKind(this.quoteTextarea.value.trim() ? 'quote' : 'link');
+		}
+
 		(this.quoteTextarea.value ? this.descriptionTextarea : this.quoteTextarea).focus();
 	}
 
@@ -65,13 +70,18 @@ class PopupUI {
 			const [injection] = await browser.scripting.executeScript({target: {tabId: tab.id}, func: extractPageData});
 			const data = injection?.result as PostData | undefined;
 			if (data) {
-				this.setPage(data.title, data.url);
-				this.quoteTextarea.value = data.quote ?? '';
-				this.descriptionTextarea.value = data.description ?? '';
+				this.fill(data);
 			}
 		} catch (error) {
 			console.error('Failed to load page data:', error);
 		}
+	}
+
+	private fill(data: PostData): void {
+		this.setPage(data.title, data.url);
+		this.quoteTextarea.value = data.quote ?? '';
+		this.descriptionTextarea.value = data.description ?? '';
+		this.tagsInput.value = data.tags?.join(', ') ?? '';
 	}
 
 	private setPage(title: string, url: string): void {
@@ -167,7 +177,7 @@ class PopupUI {
 
 	private showResults(results: PostResult[]): void {
 		const failures = results.filter(result => !result.success);
-		const message = failures.map(result => errorMessages[result.error ?? ''] ?? `${result.service}: ${result.error ?? 'Unknown error'}`).join(' / ');
+		const message = failures.map(result => `${result.service}: ${localizeError(result.error ?? 'Unknown error')}`).join(' / ');
 		const succeeded = results.filter(result => result.success).map(result => result.service);
 		this.showStatus(succeeded.length > 0 ? `${succeeded.join('・')} には投稿しました。${message}` : `投稿できませんでした: ${message}`, 'error');
 	}
