@@ -26,7 +26,7 @@ Services:
 + post to a lot of services at once
 + uses your logged in sessions, so no API keys are needed
 + photos are downloaded and uploaded, so hotlink protected images can be posted
-+ posts to X by opening its compose page in a background tab and pressing the post button
++ posts to X by opening its compose page in a small window and pressing the post button
 
 ## DEPENDENCIES
 
