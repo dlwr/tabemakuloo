@@ -79,6 +79,12 @@
     textarea { resize: vertical; }
     #quote { min-height: 96px; }
     #description { min-height: 44px; }
+    #imagePreview {
+      display: block;
+      max-width: 100%;
+      max-height: 200px;
+      margin: 0 auto;
+    }
     textarea:focus, input[type="text"]:not(#title):focus {
       outline: none;
       border-color: var(--focus);
@@ -144,12 +150,17 @@
   <fieldset class="choices" id="kinds">
     <legend>形式</legend>
     <label><input type="radio" name="kind" value="quote">引用</label>
+    <label id="photoKind" hidden><input type="radio" name="kind" value="photo">画像</label>
     <label><input type="radio" name="kind" value="link">リンク</label>
   </fieldset>
 
   <fieldset class="choices" id="services">
     <legend>投稿先</legend>
   </fieldset>
+
+  <div class="field" id="photoField" hidden>
+    <img id="imagePreview" alt="">
+  </div>
 
   <div class="field" id="quoteField">
     <label for="quote">引用</label>

@@ -12,6 +12,7 @@ import {
 
 const kindLabels: Record<PostKind, string> = {
 	quote: '引用',
+	photo: '画像',
 	link: 'リンク',
 };
 
