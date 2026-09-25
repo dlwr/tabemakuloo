@@ -1,5 +1,5 @@
 export type PostKind = 'quote' | 'link';
-export type ServiceId = 'tumblr';
+export type ServiceId = 'tumblr' | 'hatena';
 export type DefaultDestinations = Record<PostKind, ServiceId[]>;
 
 export type StorageArea = {
@@ -11,15 +11,17 @@ export const postKinds: PostKind[] = ['quote', 'link'];
 
 export const serviceNames: Record<ServiceId, string> = {
 	tumblr: 'Tumblr',
+	hatena: 'はてなブックマーク',
 };
 
 const serviceKinds: Record<ServiceId, PostKind[]> = {
 	tumblr: ['quote', 'link'],
+	hatena: ['quote', 'link'],
 };
 
 const initialDefaultDestinations: DefaultDestinations = {
 	quote: ['tumblr'],
-	link: [],
+	link: ['hatena'],
 };
 
 const storageKey = 'defaultDestinations';

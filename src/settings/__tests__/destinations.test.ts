@@ -20,12 +20,12 @@ function memoryStorage(initial: Record<string, unknown> = {}): StorageArea & {da
 }
 
 describe('servicesSupporting', () => {
-	it('lists Tumblr for quote posts', () => {
-		expect(servicesSupporting('quote')).toEqual(['tumblr']);
+	it('lists Tumblr and Hatena Bookmark for quote posts', () => {
+		expect(servicesSupporting('quote')).toEqual(['tumblr', 'hatena']);
 	});
 
-	it('lists Tumblr for link posts', () => {
-		expect(servicesSupporting('link')).toEqual(['tumblr']);
+	it('lists Tumblr and Hatena Bookmark for link posts', () => {
+		expect(servicesSupporting('link')).toEqual(['tumblr', 'hatena']);
 	});
 });
 
@@ -35,9 +35,9 @@ describe('loadDefaultDestinations', () => {
 		expect(destinations.quote).toEqual(['tumblr']);
 	});
 
-	it('posts links nowhere by default', async () => {
+	it('bookmarks links on Hatena Bookmark by default', async () => {
 		const destinations = await loadDefaultDestinations(memoryStorage());
-		expect(destinations.link).toEqual([]);
+		expect(destinations.link).toEqual(['hatena']);
 	});
 
 	it('returns saved destinations', async () => {
