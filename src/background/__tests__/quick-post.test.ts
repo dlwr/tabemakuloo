@@ -31,26 +31,26 @@ function fakeDeps(destinations: DefaultDestinations, results: PostResult[] = [])
 
 describe('quickPost', () => {
 	it('posts to the default destinations of the kind', async () => {
-		const {deps, calls} = fakeDeps({quote: ['tumblr'], link: []});
+		const {deps, calls} = fakeDeps({quote: ['tumblr'], photo: [], link: []});
 		await quickPost(draft, deps);
 		expect(calls.posted).toEqual([['tumblr']]);
 	});
 
 	it('notifies every result', async () => {
 		const results = [{service: 'Tumblr', success: true}];
-		const {deps, calls} = fakeDeps({quote: ['tumblr'], link: []}, results);
+		const {deps, calls} = fakeDeps({quote: ['tumblr'], photo: [], link: []}, results);
 		await quickPost(draft, deps);
 		expect(calls.notified).toEqual(results);
 	});
 
 	it('opens the form instead of posting when the kind has no default destinations', async () => {
-		const {deps, calls} = fakeDeps({quote: [], link: []});
+		const {deps, calls} = fakeDeps({quote: [], photo: [], link: []});
 		await quickPost(draft, deps);
 		expect(calls.opened).toEqual([draft]);
 	});
 
 	it('does not post when the kind has no default destinations', async () => {
-		const {deps, calls} = fakeDeps({quote: [], link: []});
+		const {deps, calls} = fakeDeps({quote: [], photo: [], link: []});
 		await quickPost(draft, deps);
 		expect(calls.posted).toEqual([]);
 	});

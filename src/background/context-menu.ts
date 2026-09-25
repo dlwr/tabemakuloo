@@ -15,6 +15,12 @@ const menus: Array<{mode: Mode; kind: PostKind; title: string; contexts: Menus.C
 		mode: 'form', kind: 'quote', title: 'Form - 引用', contexts: ['selection'],
 	},
 	{
+		mode: 'quick', kind: 'photo', title: 'Quick - 画像', contexts: ['image'],
+	},
+	{
+		mode: 'form', kind: 'photo', title: 'Form - 画像', contexts: ['image'],
+	},
+	{
 		mode: 'quick', kind: 'link', title: 'Quick - リンク', contexts: ['page'],
 	},
 	{
@@ -37,6 +43,10 @@ export function registerContextMenu(post: (postData: PostData, services: Service
 		const draft: Draft = {kind, postData: await extractFromTab(tab, info)};
 		if (kind !== 'quote') {
 			draft.postData.quote = '';
+		}
+
+		if (kind === 'photo') {
+			draft.postData.image = info.srcUrl;
 		}
 
 		if (mode === 'form') {

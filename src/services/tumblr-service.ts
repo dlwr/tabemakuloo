@@ -43,7 +43,27 @@ export function parseTumblrSession(html: string): TumblrSession {
 	return {apiToken: state.apiFetchStore.API_TOKEN, csrfToken: state.csrfToken};
 }
 
+export type DownloadImage = (url: string, referrer: string) => Promise<Blob>;
+
+async function fetchImage(url: string): Promise<Blob> {
+	const response = await fetch(url);
+	if (!response.ok) {
+		throw new Error(`Failed to download image (${response.status})`);
+	}
+
+	return response.blob();
+}
+
+const imageIdentifier = 'image0';
+
 export class TumblrService extends BaseService {
+	private readonly downloadImage: DownloadImage;
+
+	constructor(options: {downloadImage?: DownloadImage} = {}) {
+		super();
+		this.downloadImage = options.downloadImage ?? fetchImage;
+	}
+
 	get name(): string {
 		return 'Tumblr';
 	}
@@ -64,19 +84,22 @@ export class TumblrService extends BaseService {
 			const session = await this.getSession();
 			const blogName = await this.getPrimaryBlogName(session);
 
+			const image = this.detectPostType(data) === 'photo' ? await this.downloadImage(data.image!, data.url) : undefined;
+			const json = JSON.stringify({
+				content: this.buildContent(data, image),
+				tags: data.tags?.join(',') ?? '',
+				state: 'published',
+			});
+
 			const response = await fetch(`${origin}/api/v2/blog/${blogName}/posts`, {
 				method: 'POST',
 				credentials: 'include',
 				headers: {
 					...this.apiHeaders(session),
-					'content-type': 'application/json',
+					...(image ? {} : {'content-type': 'application/json'}),
 					'x-csrf': session.csrfToken,
 				},
-				body: JSON.stringify({
-					content: this.buildContent(data),
-					tags: data.tags?.join(',') ?? '',
-					state: 'published',
-				}),
+				body: image ? this.multipartBody(json, image) : json,
 			});
 
 			if (!response.ok) {
@@ -141,7 +164,14 @@ export class TumblrService extends BaseService {
 		return {authorization: `Bearer ${session.apiToken}`};
 	}
 
-	private buildContent(data: PostData): NpfBlock[] {
+	private multipartBody(json: string, image: Blob): FormData {
+		const body = new FormData();
+		body.append('json', json);
+		body.append(imageIdentifier, image);
+		return body;
+	}
+
+	private buildContent(data: PostData, image?: Blob): NpfBlock[] {
 		switch (this.detectPostType(data)) {
 			case 'quote': {
 				const lines = data.quote!.split('\n').map(line => line.trim()).filter(Boolean);
@@ -154,8 +184,9 @@ export class TumblrService extends BaseService {
 
 			case 'photo': {
 				return [
-					{type: 'image', media: [{url: data.image}]},
+					{type: 'image', media: [{type: image!.type, identifier: imageIdentifier}]},
 					this.sourceLinkBlock(data),
+					...(data.description ? [{type: 'text', text: data.description}] : []),
 				];
 			}
 
