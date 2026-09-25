@@ -124,6 +124,15 @@
     .choices label { display: inline-flex; align-items: center; gap: 4px; }
     .choices input { margin: 0; accent-color: var(--focus); }
     [hidden] { display: none !important; }
+    #tagSuggestions {
+      margin: 2px 0 0;
+      padding: 2px 0;
+      list-style: none;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+    #tagSuggestions li { padding: 2px 8px; cursor: pointer; }
+    #tagSuggestions li[aria-selected="true"] { background: var(--focus); color: var(--bg); }
   </style>
 </head>
 <body>
@@ -154,7 +163,8 @@
 
   <div class="field">
     <label for="tags">タグ（カンマ区切り）</label>
-    <input type="text" id="tags">
+    <input type="text" id="tags" autocomplete="off" role="combobox" aria-controls="tagSuggestions" aria-expanded="false">
+    <ul id="tagSuggestions" role="listbox" hidden></ul>
   </div>
 
   <div class="actions">

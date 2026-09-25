@@ -11,6 +11,7 @@ import {
 import type {PostData, PostResult} from '@/types';
 import {takeFormDraft} from '@/utils/draft.js';
 import {localizeError} from '@/utils/error-messages.js';
+import {applyTagCompletion, suggestTags} from '@/utils/tag-completion.js';
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 class PopupUI {
@@ -22,6 +23,10 @@ class PopupUI {
 	private readonly quoteTextarea = document.querySelector<HTMLTextAreaElement>('#quote')!;
 	private readonly descriptionTextarea = document.querySelector<HTMLTextAreaElement>('#description')!;
 	private readonly tagsInput = document.querySelector<HTMLInputElement>('#tags')!;
+	private readonly tagSuggestions = document.querySelector<HTMLUListElement>('#tagSuggestions')!;
+	private tagCandidates: Record<string, number> = {};
+	private suggestions: string[] = [];
+	private highlighted = -1;
 	private readonly postButton = document.querySelector<HTMLButtonElement>('#postBtn')!;
 	private readonly status = document.querySelector<HTMLElement>('#status')!;
 	private defaultDestinations?: DefaultDestinations;
@@ -38,6 +43,15 @@ class PopupUI {
 				this.selectKind(input.value as PostKind);
 			});
 		}
+
+		this.tagsInput.addEventListener('input', () => {
+			this.showSuggestions(suggestTags(this.tagsInput.value, this.tagCandidates));
+		});
+		this.tagsInput.addEventListener('keydown', this.handleTagKeydown.bind(this));
+		this.tagsInput.addEventListener('blur', () => {
+			this.showSuggestions([]);
+		});
+		void this.loadTagCandidates();
 
 		document.addEventListener('keydown', event => {
 			if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
@@ -112,6 +126,74 @@ class PopupUI {
 			return label;
 		});
 		this.serviceList.replaceChildren(this.serviceList.querySelector('legend')!, ...labels);
+	}
+
+	private async loadTagCandidates(): Promise<void> {
+		try {
+			this.tagCandidates = await browser.runtime.sendMessage({type: 'GET_TAG_CANDIDATES'}) as Record<string, number>;
+		} catch (error) {
+			console.error('Failed to load tag candidates:', error);
+		}
+	}
+
+	private handleTagKeydown(event: KeyboardEvent): void {
+		if (this.suggestions.length === 0 || event.metaKey || event.ctrlKey) {
+			return;
+		}
+
+		switch (event.key) {
+			case 'ArrowDown':
+			case 'ArrowUp': {
+				event.preventDefault();
+				const step = event.key === 'ArrowDown' ? 1 : -1;
+				this.highlight((this.highlighted + step + this.suggestions.length) % this.suggestions.length);
+				break;
+			}
+
+			case 'Tab':
+			case 'Enter': {
+				event.preventDefault();
+				this.completeTag(this.suggestions[Math.max(this.highlighted, 0)]);
+				break;
+			}
+
+			case 'Escape': {
+				event.preventDefault();
+				this.showSuggestions([]);
+				break;
+			}
+
+			default:
+		}
+	}
+
+	private showSuggestions(suggestions: string[]): void {
+		this.suggestions = suggestions;
+		this.highlighted = -1;
+		this.tagSuggestions.replaceChildren(...suggestions.map(tag => {
+			const item = document.createElement('li');
+			item.role = 'option';
+			item.textContent = tag;
+			item.addEventListener('mousedown', event => {
+				event.preventDefault();
+				this.completeTag(tag);
+			});
+			return item;
+		}));
+		this.tagSuggestions.hidden = suggestions.length === 0;
+		this.tagsInput.setAttribute('aria-expanded', String(suggestions.length > 0));
+	}
+
+	private highlight(index: number): void {
+		this.highlighted = index;
+		for (const [itemIndex, item] of [...this.tagSuggestions.children].entries()) {
+			item.setAttribute('aria-selected', String(itemIndex === index));
+		}
+	}
+
+	private completeTag(tag: string): void {
+		this.tagsInput.value = applyTagCompletion(this.tagsInput.value, tag);
+		this.showSuggestions([]);
 	}
 
 	private selectedKind(): PostKind {
