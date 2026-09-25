@@ -2,6 +2,7 @@ import browser from 'webextension-polyfill';
 import {extractPageData} from '@/content/page-data.js';
 import {
 	loadDefaultDestinations,
+	serviceIconPath,
 	serviceNames,
 	servicesSupporting,
 	type DefaultDestinations,
@@ -171,8 +172,15 @@ class PopupUI {
 			input.type = 'checkbox';
 			input.value = service;
 			input.checked = checked.includes(service);
+			input.className = 'service-toggle';
+			input.setAttribute('aria-label', serviceNames[service]);
+			const icon = document.createElement('img');
+			icon.src = browser.runtime.getURL(serviceIconPath(service));
+			icon.alt = '';
 			const label = document.createElement('label');
-			label.append(input, serviceNames[service]);
+			label.className = 'service';
+			label.title = serviceNames[service];
+			label.append(input, icon);
 			return label;
 		});
 		this.serviceList.replaceChildren(this.serviceList.querySelector('legend')!, ...labels);

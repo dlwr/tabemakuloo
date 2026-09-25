@@ -15,6 +15,10 @@ export const serviceNames: Record<ServiceId, string> = {
 	x: 'X',
 };
 
+export function serviceIconPath(service: ServiceId): string {
+	return `icons/services/${service}.png`;
+}
+
 const serviceKinds: Record<ServiceId, PostKind[]> = {
 	tumblr: ['quote', 'photo', 'reblog', 'link'],
 	hatena: ['quote', 'photo', 'reblog', 'link'],
