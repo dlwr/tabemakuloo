@@ -1,6 +1,7 @@
 import browser from 'webextension-polyfill';
 import {connectReloadServer} from './reload-server.js';
 import {postToServices} from './post-to-services.js';
+import {registerContextMenu} from './context-menu.js';
 import {TumblrService} from '@/services/tumblr-service.js';
 import type {PostData, PostResult} from '@/types';
 
@@ -14,6 +15,7 @@ class BackgroundService {
 
 	private init(): void {
 		browser.runtime.onMessage.addListener(this.handleMessage.bind(this));
+		registerContextMenu(this.post.bind(this));
 	}
 
 	private async handleMessage(message: unknown): Promise<unknown> {
@@ -41,7 +43,11 @@ class BackgroundService {
 	}
 
 	private async handlePostToServices(data: {postData: PostData; services: string[]}): Promise<{results: PostResult[]}> {
-		return {results: await postToServices(data.postData, data.services, {tumblr: this.tumblrService})};
+		return {results: await this.post(data.postData, data.services)};
+	}
+
+	private async post(postData: PostData, services: string[]): Promise<PostResult[]> {
+		return postToServices(postData, services, {tumblr: this.tumblrService});
 	}
 
 	private async handleCheckAuth(data: {service: string}): Promise<{authenticated: boolean}> {
