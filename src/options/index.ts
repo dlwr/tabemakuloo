@@ -3,6 +3,7 @@ import {
 	loadDefaultDestinations,
 	postKinds,
 	saveDefaultDestinations,
+	serviceIconPath,
 	serviceNames,
 	servicesSupporting,
 	type DefaultDestinations,
@@ -35,7 +36,10 @@ function render(destinations: DefaultDestinations): void {
 		const row = body.insertRow();
 		const name = document.createElement('th');
 		name.scope = 'row';
-		name.textContent = serviceNames[service];
+		const icon = document.createElement('img');
+		icon.src = browser.runtime.getURL(serviceIconPath(service));
+		icon.alt = '';
+		name.append(icon, serviceNames[service]);
 		row.append(name);
 		for (const kind of postKinds) {
 			const cell = row.insertCell();
