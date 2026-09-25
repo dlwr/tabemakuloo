@@ -14,12 +14,17 @@
     "http://*/*"
   ],
   "background": {
-    "service_worker": "background/index.js"
+    "service_worker": "background/index.js",
+    "type": "module"
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content/index.js"]
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content/index.js"
+      ]
     }
   ],
   "action": {
@@ -30,15 +35,14 @@
     "page": "options/index.html",
     "open_in_tab": true
   },
-  "icons": {
-    "16": "icons/icon16.png",
-    "48": "icons/icon48.png",
-    "128": "icons/icon128.png"
-  },
   "web_accessible_resources": [
     {
-      "resources": ["content/*"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "content/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ]
 }
