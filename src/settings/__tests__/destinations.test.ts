@@ -35,7 +35,18 @@ describe('servicesSupporting photo', () => {
 	});
 });
 
+describe('servicesSupporting reblog', () => {
+	it('lists Tumblr and Hatena Bookmark for reblogs', () => {
+		expect(servicesSupporting('reblog')).toEqual(['tumblr', 'hatena']);
+	});
+});
+
 describe('loadDefaultDestinations', () => {
+	it('reblogs on Tumblr by default', async () => {
+		const destinations = await loadDefaultDestinations(memoryStorage());
+		expect(destinations.reblog).toEqual(['tumblr']);
+	});
+
 	it('posts photos to Tumblr by default', async () => {
 		const destinations = await loadDefaultDestinations(memoryStorage());
 		expect(destinations.photo).toEqual(['tumblr']);
@@ -73,7 +84,7 @@ describe('loadDefaultDestinations', () => {
 describe('saveDefaultDestinations', () => {
 	it('can be loaded back', async () => {
 		const storage = memoryStorage();
-		await saveDefaultDestinations(storage, {quote: [], photo: ['hatena'], link: ['tumblr']});
-		expect(await loadDefaultDestinations(storage)).toEqual({quote: [], photo: ['hatena'], link: ['tumblr']});
+		await saveDefaultDestinations(storage, {quote: [], photo: ['hatena'], reblog: [], link: ['tumblr']});
+		expect(await loadDefaultDestinations(storage)).toEqual({quote: [], photo: ['hatena'], reblog: [], link: ['tumblr']});
 	});
 });

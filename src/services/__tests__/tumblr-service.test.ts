@@ -233,6 +233,70 @@ describe('TumblrService', () => {
 			});
 		});
 
+		describe('reblogs', () => {
+			const parentRoute = 'GET https://www.tumblr.com/api/v2/blog/staff/posts?id=111';
+			const parent: Route = {
+				ok: true,
+				body: {
+					response: {
+						blog: {name: 'staff', uuid: 't:staff-uuid'},
+						// eslint-disable-next-line @typescript-eslint/naming-convention
+						posts: [{id_string: '111', reblog_key: 'the-key'}],
+					},
+				},
+			};
+			const reblogData: PostData = {
+				title: 'staff',
+				url: 'https://www.tumblr.com/staff/111',
+				reblogOf: {blog: 'staff', id: '111'},
+				description: '',
+				tags: ['foo'],
+			};
+
+			it('reblogs the parent post', async () => {
+				const fetchMock = mockTumblr({...loggedInRoutes, [parentRoute]: parent, [postUrl]: created});
+
+				await service.post(reblogData);
+
+				expect(postRequestBody(fetchMock)).toMatchObject({
+					// eslint-disable-next-line @typescript-eslint/naming-convention
+					parent_tumblelog_uuid: 't:staff-uuid', parent_post_id: '111', reblog_key: 'the-key',
+				});
+			});
+
+			it('adds nothing when there is no comment', async () => {
+				const fetchMock = mockTumblr({...loggedInRoutes, [parentRoute]: parent, [postUrl]: created});
+
+				await service.post(reblogData);
+
+				expect(postRequestBody(fetchMock).content).toEqual([]);
+			});
+
+			it('adds the comment', async () => {
+				const fetchMock = mockTumblr({...loggedInRoutes, [parentRoute]: parent, [postUrl]: created});
+
+				await service.post({...reblogData, description: 'nice'});
+
+				expect(postRequestBody(fetchMock).content).toEqual([{type: 'text', text: 'nice'}]);
+			});
+
+			it('tags the reblog', async () => {
+				const fetchMock = mockTumblr({...loggedInRoutes, [parentRoute]: parent, [postUrl]: created});
+
+				await service.post(reblogData);
+
+				expect(postRequestBody(fetchMock).tags).toBe('foo');
+			});
+
+			it('fails when the parent post cannot be found', async () => {
+				mockTumblr({...loggedInRoutes, [parentRoute]: {ok: false, status: 404}});
+
+				const result = await service.post(reblogData);
+
+				expect(result.error).toBe('Tumblr post to reblog not found (404)');
+			});
+		});
+
 		it('posts a quote followed by an attributed source link and the description', async () => {
 			const fetchMock = mockTumblr({...loggedInRoutes, [postUrl]: created});
 
@@ -345,6 +409,10 @@ describe('TumblrService', () => {
 			};
 
 			expect(service.detectPostType(textData)).toBe('text');
+		});
+
+		it('detects reblogs', () => {
+			expect(service.detectPostType({title: '', url: 'https://www.tumblr.com/staff/1', reblogOf: {blog: 'staff', id: '1'}})).toBe('reblog');
 		});
 
 		it('should detect image posts', () => {
