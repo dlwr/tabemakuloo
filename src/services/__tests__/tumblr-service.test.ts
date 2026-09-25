@@ -1,14 +1,79 @@
 import {
 	describe, it, expect, vi, beforeEach,
 } from 'vitest';
-import {TumblrService} from '../tumblr-service.js';
+import {TumblrService, parseTumblrSession} from '../tumblr-service.js';
 import type {PostData} from '@/types';
+
+const dashboardHtml = `<html><head>
+<script type="application/json" id="___INITIAL_STATE___">{"csrfToken":"test-csrf","apiUrl":"https://www.tumblr.com/api","apiFetchStore":{"API_TOKEN":"test-api-token","extraHeaders":"{}"}}</script>
+</head></html>`;
+
+const userInfo = {
+	response: {
+		user: {
+			name: 'test-user',
+			blogs: [
+				{name: 'side-blog', primary: false},
+				{name: 'main-blog', primary: true},
+			],
+		},
+	},
+};
+
+type Route = {ok: boolean; status?: number; body?: unknown; text?: string};
+
+function mockTumblr(routes: Record<string, Route>) {
+	const fetchMock = vi.fn(async (input: string, init?: RequestInit) => {
+		const key = `${init?.method ?? 'GET'} ${input}`;
+		const route = routes[key];
+		if (!route) {
+			throw new Error(`Unexpected request: ${key}`);
+		}
+
+		return {
+			ok: route.ok,
+			status: route.status ?? (route.ok ? 200 : 500),
+			json: async () => route.body,
+			text: async () => route.text ?? '',
+		};
+	});
+	global.fetch = fetchMock as unknown as typeof fetch;
+	return fetchMock;
+}
+
+const loggedInRoutes: Record<string, Route> = {
+	'GET https://www.tumblr.com/': {ok: true, text: dashboardHtml},
+	'GET https://www.tumblr.com/api/v2/user/info': {ok: true, body: userInfo},
+};
+
+function requestHeaders(fetchMock: ReturnType<typeof mockTumblr>, url: string): Record<string, string> {
+	const call = fetchMock.mock.calls.find(([input]) => input === url);
+	return call![1]!.headers as Record<string, string>;
+}
+
+function postRequestBody(fetchMock: ReturnType<typeof mockTumblr>): Record<string, unknown> {
+	const call = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST');
+	return JSON.parse(call![1]!.body as string) as Record<string, unknown>;
+}
+
+describe('parseTumblrSession', () => {
+	it('extracts the API token from the initial state', () => {
+		expect(parseTumblrSession(dashboardHtml).apiToken).toBe('test-api-token');
+	});
+
+	it('extracts the CSRF token from the initial state', () => {
+		expect(parseTumblrSession(dashboardHtml).csrfToken).toBe('test-csrf');
+	});
+
+	it('throws when the initial state is missing', () => {
+		expect(() => parseTumblrSession('<html></html>')).toThrow('Tumblr session not found');
+	});
+});
 
 describe('TumblrService', () => {
 	let service: TumblrService;
 	beforeEach(() => {
 		service = new TumblrService();
-		global.fetch = vi.fn();
 	});
 
 	describe('Basic functionality', () => {
@@ -16,88 +81,145 @@ describe('TumblrService', () => {
 			expect(service.name).toBe('Tumblr');
 		});
 
-		it('should support multiple post types', () => {
-			expect(service.supports('text')).toBe(true);
-			expect(service.supports('link')).toBe(true);
-			expect(service.supports('image')).toBe(true);
-			expect(service.supports('video')).toBe(true);
+		it.each(['text', 'link', 'photo', 'quote'] as const)('supports %s posts', type => {
+			expect(service.supports(type)).toBe(true);
+		});
+
+		it('does not support video posts', () => {
+			expect(service.supports('video')).toBe(false);
 		});
 	});
 
 	describe('Authentication', () => {
-		it('should check authentication status', async () => {
-			const mockFetch = global.fetch as ReturnType<typeof vi.fn>;
-			mockFetch.mockResolvedValueOnce({
-				ok: true,
-				json: async () => ({user: {name: 'test-user'}}),
-			});
+		it('is authenticated when user info can be fetched with the session token', async () => {
+			const fetchMock = mockTumblr(loggedInRoutes);
 
-			const result = await service.authenticate();
-			expect(result).toBe(true);
-			expect(mockFetch).toHaveBeenCalledWith('https://www.tumblr.com/api/v2/user/info', {
-				credentials: 'include',
-			});
+			expect(await service.authenticate()).toBe(true);
+			expect(requestHeaders(fetchMock, 'https://www.tumblr.com/api/v2/user/info')).toMatchObject({authorization: 'Bearer test-api-token'});
 		});
 
-		it('should handle authentication failure', async () => {
-			const mockFetch = global.fetch as ReturnType<typeof vi.fn>;
-			mockFetch.mockResolvedValueOnce({
-				ok: false,
-				status: 401,
+		it('is not authenticated when user info is rejected', async () => {
+			mockTumblr({
+				...loggedInRoutes,
+				'GET https://www.tumblr.com/api/v2/user/info': {ok: false, status: 401},
 			});
 
-			const result = await service.authenticate();
-			expect(result).toBe(false);
+			expect(await service.authenticate()).toBe(false);
 		});
 	});
 
 	describe('Posting', () => {
-		const validPostData: PostData = {
+		const postUrl = 'POST https://www.tumblr.com/api/v2/blog/main-blog/posts';
+		const created: Route = {
+			ok: true, status: 201,
+			// eslint-disable-next-line @typescript-eslint/naming-convention
+			body: {response: {id_string: '12345'}},
+		};
+
+		const linkData: PostData = {
 			title: 'Test Post',
 			url: 'https://example.com',
 			description: 'Test description',
 			tags: ['test', 'example'],
 		};
 
-		it('should post text content successfully', async () => {
-			const mockFetch = global.fetch as ReturnType<typeof vi.fn>;
-			// Mock form key request
-			mockFetch
-				.mockResolvedValueOnce({
-					ok: true,
-					json: async () => ({
-						// eslint-disable-next-line @typescript-eslint/naming-convention
-						response: {form_key: 'test-form-key'},
-					}),
-				})
-			// Mock post request
-				.mockResolvedValueOnce({
-					ok: true,
-					json: async () => ({
-						response: {
-							id: '12345',
-						},
-					}),
-				});
+		it('returns the URL of the created post', async () => {
+			mockTumblr({...loggedInRoutes, [postUrl]: created});
 
-			const result = await service.post(validPostData);
+			const result = await service.post(linkData);
 
-			expect(result.success).toBe(true);
-			expect(result.service).toBe('Tumblr');
-			expect(result.url).toContain('12345');
+			expect(result).toEqual({service: 'Tumblr', success: true, url: 'https://www.tumblr.com/main-blog/12345'});
 		});
 
-		it('should handle posting errors', async () => {
-			const mockFetch = global.fetch as ReturnType<typeof vi.fn>;
-			mockFetch.mockResolvedValueOnce({
-				ok: false,
-				status: 500,
+		it('sends the API token and CSRF token', async () => {
+			const fetchMock = mockTumblr({...loggedInRoutes, [postUrl]: created});
+
+			await service.post(linkData);
+
+			expect(requestHeaders(fetchMock, 'https://www.tumblr.com/api/v2/blog/main-blog/posts')).toMatchObject({authorization: 'Bearer test-api-token', 'x-csrf': 'test-csrf'});
+		});
+
+		it('posts a link block for link posts', async () => {
+			const fetchMock = mockTumblr({...loggedInRoutes, [postUrl]: created});
+
+			await service.post(linkData);
+
+			expect(postRequestBody(fetchMock).content).toEqual([
+				{
+					type: 'link', url: 'https://example.com', title: 'Test Post', description: 'Test description',
+				},
+			]);
+		});
+
+		it('posts tags as a comma separated string', async () => {
+			const fetchMock = mockTumblr({...loggedInRoutes, [postUrl]: created});
+
+			await service.post(linkData);
+
+			expect(postRequestBody(fetchMock).tags).toBe('test,example');
+		});
+
+		it('publishes the post immediately', async () => {
+			const fetchMock = mockTumblr({...loggedInRoutes, [postUrl]: created});
+
+			await service.post(linkData);
+
+			expect(postRequestBody(fetchMock).state).toBe('published');
+		});
+
+		it('posts an image block followed by a source link for photo posts', async () => {
+			const fetchMock = mockTumblr({...loggedInRoutes, [postUrl]: created});
+
+			await service.post({...linkData, image: 'https://example.com/image.jpg'});
+
+			expect(postRequestBody(fetchMock).content).toEqual([
+				{type: 'image', media: [{url: 'https://example.com/image.jpg'}]},
+				{
+					type: 'text',
+					text: 'Test Post',
+					formatting: [{
+						type: 'link', start: 0, end: 9, url: 'https://example.com',
+					}],
+				},
+			]);
+		});
+
+		it('posts each quoted line as an indented block followed by an attributed source link', async () => {
+			const fetchMock = mockTumblr({...loggedInRoutes, [postUrl]: created});
+
+			await service.post({...linkData, quote: 'first line\n\nsecond line'});
+
+			expect(postRequestBody(fetchMock).content).toEqual([
+				{type: 'text', subtype: 'indented', text: 'first line'},
+				{type: 'text', subtype: 'indented', text: 'second line'},
+				{
+					type: 'text',
+					text: '— Test Post',
+					formatting: [{
+						type: 'link', start: 2, end: 11, url: 'https://example.com',
+					}],
+				},
+				{type: 'text', text: 'Test description'},
+			]);
+		});
+
+		it('fails with the HTTP status when Tumblr rejects the post', async () => {
+			mockTumblr({...loggedInRoutes, [postUrl]: {ok: false, status: 403}});
+
+			const result = await service.post(linkData);
+
+			expect(result.error).toBe('Failed to post to Tumblr (403)');
+		});
+
+		it('fails when not logged in to Tumblr', async () => {
+			mockTumblr({
+				...loggedInRoutes,
+				'GET https://www.tumblr.com/api/v2/user/info': {ok: false, status: 401},
 			});
 
-			const result = await service.post(validPostData);
+			const result = await service.post(linkData);
 
-			expect(result.success).toBe(false);
-			expect(result.error).toContain('Failed');
+			expect(result.error).toBe('Not logged in to Tumblr');
 		});
 
 		it('should validate post data', async () => {
@@ -116,6 +238,27 @@ describe('TumblrService', () => {
 	});
 
 	describe('Post type detection', () => {
+		it('detects quote posts when text is quoted, even with an image', () => {
+			const quoteData: PostData = {
+				title: 'Quote Post',
+				url: 'https://example.com',
+				image: 'https://example.com/image.jpg',
+				quote: 'quoted text',
+			};
+
+			expect(service.detectPostType(quoteData)).toBe('quote');
+		});
+
+		it('does not detect quote posts for whitespace-only quotes', () => {
+			const data: PostData = {
+				title: 'Link Post',
+				url: 'https://example.com',
+				quote: '  ',
+			};
+
+			expect(service.detectPostType(data)).toBe('link');
+		});
+
 		it('should detect link posts', () => {
 			const linkData: PostData = {
 				title: 'Link Post',

@@ -4,6 +4,7 @@ export type PostData = {
 	description?: string;
 	tags?: string[];
 	image?: string;
+	quote?: string;
 };
 
 export type Service = {

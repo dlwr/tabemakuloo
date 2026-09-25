@@ -1,127 +1,133 @@
 import browser from 'webextension-polyfill';
-import type {PostData} from '@/types';
+import {TumblrService} from '@/services/tumblr-service.js';
+import type {PostData, PostResult, PostTypeString} from '@/types';
+
+const postButtonLabels: Partial<Record<PostTypeString, string>> = {
+	quote: 'Tumblr に引用を投稿',
+	link: 'Tumblr にリンクを投稿',
+	photo: 'Tumblr に画像を投稿',
+	text: 'Tumblr に投稿',
+};
+
+const errorMessages: Record<string, string> = {
+	'Not logged in to Tumblr': 'Tumblr にログインしていません',
+};
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 class PopupUI {
-	private readonly titleInput: HTMLInputElement;
-	private readonly descriptionTextarea: HTMLTextAreaElement;
-	private readonly tagsInput: HTMLInputElement;
-	private readonly postButton: HTMLButtonElement;
+	private readonly titleInput = document.querySelector<HTMLInputElement>('#title')!;
+	private readonly urlText = document.querySelector<HTMLElement>('#url')!;
+	private readonly quoteTextarea = document.querySelector<HTMLTextAreaElement>('#quote')!;
+	private readonly descriptionTextarea = document.querySelector<HTMLTextAreaElement>('#description')!;
+	private readonly tagsInput = document.querySelector<HTMLInputElement>('#tags')!;
+	private readonly postButton = document.querySelector<HTMLButtonElement>('#postBtn')!;
+	private readonly status = document.querySelector<HTMLElement>('#status')!;
+	private readonly tumblr = new TumblrService();
+	private url = '';
 
 	constructor() {
-		this.titleInput = document.querySelector('#title')!;
-		this.descriptionTextarea = document.querySelector('#description')!;
-		this.tagsInput = document.querySelector('#tags')!;
-		this.postButton = document.querySelector('#postBtn')!;
-
 		void this.init();
 	}
 
 	private async init(): Promise<void> {
+		this.postButton.addEventListener('click', this.handlePost.bind(this));
+		this.quoteTextarea.addEventListener('input', this.updatePostButton.bind(this));
+		document.addEventListener('keydown', event => {
+			if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+				void this.handlePost();
+			}
+		});
+
 		await this.loadCurrentPageData();
-		this.setupEventListeners();
+		this.updatePostButton();
+		(this.quoteTextarea.value ? this.descriptionTextarea : this.quoteTextarea).focus();
 	}
 
 	private async loadCurrentPageData(): Promise<void> {
-		try {
-			const tabs = await browser.tabs.query({active: true, currentWindow: true});
-			const tab = tabs[0];
+		const [tab] = await browser.tabs.query({active: true, currentWindow: true});
+		this.setPage(tab?.title ?? '', tab?.url ?? '');
 
-			if (tab?.id) {
-				const response = await browser.tabs.sendMessage(tab.id, {type: 'GET_PAGE_DATA'}) as PostData;
-				if (response) {
-					this.populateForm(response);
-				}
+		if (!tab?.id) {
+			return;
+		}
+
+		try {
+			const data = await browser.tabs.sendMessage(tab.id, {type: 'GET_PAGE_DATA'}) as PostData | undefined;
+			if (data) {
+				this.setPage(data.title, data.url);
+				this.quoteTextarea.value = data.quote ?? '';
+				this.descriptionTextarea.value = data.description ?? '';
 			}
 		} catch (error) {
 			console.error('Failed to load page data:', error);
-			// Fallback to tab info
-			const tabs = await browser.tabs.query({active: true, currentWindow: true});
-			const tab = tabs[0];
-			if (tab) {
-				this.titleInput.value = tab.title ?? '';
-			}
 		}
 	}
 
-	private populateForm(data: PostData): void {
-		this.titleInput.value = data.title ?? '';
-		this.descriptionTextarea.value = data.description ?? '';
+	private setPage(title: string, url: string): void {
+		this.titleInput.value = title;
+		this.url = url;
+		this.urlText.textContent = url;
+		this.urlText.title = url;
 	}
 
-	private setupEventListeners(): void {
-		this.postButton.addEventListener('click', this.handlePost.bind(this));
+	private updatePostButton(): void {
+		this.postButton.textContent = postButtonLabels[this.tumblr.detectPostType(this.collectFormData())] ?? 'Tumblr に投稿';
 	}
 
 	private async handlePost(): Promise<void> {
+		if (this.postButton.disabled) {
+			return;
+		}
+
 		this.postButton.disabled = true;
-		this.postButton.textContent = '投稿中...';
+		this.showStatus('投稿中…');
 
 		try {
-			const postData = await this.collectFormData();
-			const selectedServices = this.getSelectedServices();
-
-			console.log('Posting to services:', selectedServices, postData);
-
 			const response = await browser.runtime.sendMessage({
 				type: 'POST_TO_SERVICES',
-				data: {postData, services: selectedServices},
-			}) as {results: Array<{service: string; success: boolean; error?: string; url?: string}>};
+				data: {postData: this.collectFormData(), services: ['tumblr']},
+			}) as {results?: PostResult[]} | undefined;
+			const result = response?.results?.[0];
 
-			if (response?.results) {
-				const successCount = response.results.filter(r => r.success).length;
-				const totalCount = response.results.length;
-
-				if (successCount === totalCount) {
-					this.postButton.textContent = '投稿完了！';
-					setTimeout(() => {
-						window.close();
-					}, 1000);
-				} else if (successCount > 0) {
-					this.postButton.textContent = `一部成功 (${successCount}/${totalCount})`;
-					setTimeout(() => {
-						this.resetPostButton();
-					}, 3000);
-				} else {
-					const errorMessage = response.results[0]?.error ?? 'Unknown error';
-					this.postButton.textContent = `投稿失敗: ${errorMessage}`;
-					setTimeout(() => {
-						this.resetPostButton();
-					}, 3000);
-				}
-			} else {
-				throw new Error('Invalid response from background script');
+			if (result?.success) {
+				this.showSuccess(result.url);
+				return;
 			}
+
+			const error = result?.error ?? 'Unknown error';
+			this.showStatus(errorMessages[error] ?? `投稿できませんでした: ${error}`, 'error');
 		} catch (error) {
 			console.error('Post failed:', error);
-			this.postButton.textContent = '投稿失敗';
-			setTimeout(() => {
-				this.resetPostButton();
-			}, 2000);
+			this.showStatus('投稿できませんでした', 'error');
+		}
+
+		this.postButton.disabled = false;
+	}
+
+	private showSuccess(postUrl?: string): void {
+		this.showStatus('投稿しました', 'success');
+		if (postUrl) {
+			const link = document.createElement('a');
+			link.href = postUrl;
+			link.target = '_blank';
+			link.textContent = '開く';
+			this.status.append(' ', link);
 		}
 	}
 
-	private resetPostButton(): void {
-		this.postButton.disabled = false;
-		this.postButton.textContent = '投稿する';
+	private showStatus(message: string, kind?: 'error' | 'success'): void {
+		this.status.textContent = message;
+		this.status.className = kind ?? '';
 	}
 
-	private async collectFormData(): Promise<PostData> {
-		// Get current tab URL
-		const tabs = await browser.tabs.query({active: true, currentWindow: true});
-		const currentUrl = tabs[0]?.url ?? '';
-
+	private collectFormData(): PostData {
 		return {
 			title: this.titleInput.value,
-			url: currentUrl,
+			url: this.url,
 			description: this.descriptionTextarea.value,
+			quote: this.quoteTextarea.value,
 			tags: this.tagsInput.value.split(',').map(tag => tag.trim()).filter(Boolean),
 		};
-	}
-
-	private getSelectedServices(): string[] {
-		const checkboxes = document.querySelectorAll('.services input[type="checkbox"]:checked');
-		return Array.from(checkboxes).map(checkbox => (checkbox as HTMLInputElement).id);
 	}
 }
 
