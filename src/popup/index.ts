@@ -1,4 +1,5 @@
 import browser from 'webextension-polyfill';
+import {extractPageData} from './page-data.js';
 import {TumblrService} from '@/services/tumblr-service.js';
 import type {PostData, PostResult, PostTypeString} from '@/types';
 
@@ -52,7 +53,8 @@ class PopupUI {
 		}
 
 		try {
-			const data = await browser.tabs.sendMessage(tab.id, {type: 'GET_PAGE_DATA'}) as PostData | undefined;
+			const [injection] = await browser.scripting.executeScript({target: {tabId: tab.id}, func: extractPageData});
+			const data = injection?.result as PostData | undefined;
 			if (data) {
 				this.setPage(data.title, data.url);
 				this.quoteTextarea.value = data.quote ?? '';

@@ -6,7 +6,6 @@
   "permissions": [
     "storage",
     "activeTab",
-    "contextMenus",
     "scripting"
   ],
   "host_permissions": [
@@ -17,16 +16,6 @@
     "service_worker": "background/index.js",
     "type": "module"
   },
-  "content_scripts": [
-    {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "content/index.js"
-      ]
-    }
-  ],
   "action": {
     "default_popup": "popup/index.html",
     "default_title": "Tabemakuloo"
@@ -34,15 +23,5 @@
   "options_ui": {
     "page": "options/index.html",
     "open_in_tab": true
-  },
-  "web_accessible_resources": [
-    {
-      "resources": [
-        "content/*"
-      ],
-      "matches": [
-        "<all_urls>"
-      ]
-    }
-  ]
+  }
 }
