@@ -46,6 +46,11 @@ const loggedInRoutes: Record<string, Route> = {
 	'GET https://www.tumblr.com/api/v2/user/info': {ok: true, body: userInfo},
 };
 
+function requestHeaders(fetchMock: ReturnType<typeof mockTumblr>, url: string): Record<string, string> {
+	const call = fetchMock.mock.calls.find(([input]) => input === url);
+	return call![1]!.headers as Record<string, string>;
+}
+
 function postRequestBody(fetchMock: ReturnType<typeof mockTumblr>): Record<string, unknown> {
 	const call = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST');
 	return JSON.parse(call![1]!.body as string) as Record<string, unknown>;
@@ -90,9 +95,7 @@ describe('TumblrService', () => {
 			const fetchMock = mockTumblr(loggedInRoutes);
 
 			expect(await service.authenticate()).toBe(true);
-			expect(fetchMock).toHaveBeenCalledWith('https://www.tumblr.com/api/v2/user/info', expect.objectContaining({
-				headers: expect.objectContaining({authorization: 'Bearer test-api-token'}),
-			}));
+			expect(requestHeaders(fetchMock, 'https://www.tumblr.com/api/v2/user/info')).toMatchObject({authorization: 'Bearer test-api-token'});
 		});
 
 		it('is not authenticated when user info is rejected', async () => {
@@ -107,7 +110,11 @@ describe('TumblrService', () => {
 
 	describe('Posting', () => {
 		const postUrl = 'POST https://www.tumblr.com/api/v2/blog/main-blog/posts';
-		const created: Route = {ok: true, status: 201, body: {response: {id_string: '12345'}}};
+		const created: Route = {
+			ok: true, status: 201,
+			// eslint-disable-next-line @typescript-eslint/naming-convention
+			body: {response: {id_string: '12345'}},
+		};
 
 		const linkData: PostData = {
 			title: 'Test Post',
@@ -129,9 +136,7 @@ describe('TumblrService', () => {
 
 			await service.post(linkData);
 
-			expect(fetchMock).toHaveBeenCalledWith('https://www.tumblr.com/api/v2/blog/main-blog/posts', expect.objectContaining({
-				headers: expect.objectContaining({authorization: 'Bearer test-api-token', 'x-csrf': 'test-csrf'}),
-			}));
+			expect(requestHeaders(fetchMock, 'https://www.tumblr.com/api/v2/blog/main-blog/posts')).toMatchObject({authorization: 'Bearer test-api-token', 'x-csrf': 'test-csrf'});
 		});
 
 		it('posts a link block for link posts', async () => {

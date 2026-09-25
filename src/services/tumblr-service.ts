@@ -1,6 +1,48 @@
 import {BaseService} from './base-service.js';
 import type {PostData, PostResult, PostTypeString} from '@/types';
 
+const origin = 'https://www.tumblr.com';
+
+type TumblrSession = {
+	apiToken: string;
+	csrfToken: string;
+};
+
+type NpfBlock = Record<string, unknown>;
+
+type UserInfoResponse = {
+	response: {
+		user: {
+			blogs: Array<{name: string; primary: boolean}>;
+		};
+	};
+};
+
+type CreatePostResponse = {
+	response: {
+		id_string: string;
+	};
+};
+
+class NotLoggedInError extends Error {
+	constructor() {
+		super('Not logged in to Tumblr');
+	}
+}
+
+export function parseTumblrSession(html: string): TumblrSession {
+	const match = /<script[^>]*id="___INITIAL_STATE___"[^>]*>([\s\S]*?)<\/script>/.exec(html);
+	if (!match) {
+		throw new Error('Tumblr session not found');
+	}
+
+	const state = JSON.parse(match[1]) as {
+		csrfToken: string;
+		apiFetchStore: {API_TOKEN: string};
+	};
+	return {apiToken: state.apiFetchStore.API_TOKEN, csrfToken: state.csrfToken};
+}
+
 export class TumblrService extends BaseService {
 	get name(): string {
 		return 'Tumblr';
@@ -8,10 +50,8 @@ export class TumblrService extends BaseService {
 
 	async authenticate(): Promise<boolean> {
 		try {
-			const response = await fetch('https://www.tumblr.com/api/v2/user/info', {
-				credentials: 'include',
-			});
-			return response.ok;
+			await this.getPrimaryBlogName(await this.getSession());
+			return true;
 		} catch {
 			return false;
 		}
@@ -21,34 +61,37 @@ export class TumblrService extends BaseService {
 		try {
 			this.validatePostData(data);
 
-			const formKey = await this.getFormKey();
-			const postType = this.detectPostType(data);
-			const postData = this.preparePostData(data, postType, formKey);
+			const session = await this.getSession();
+			const blogName = await this.getPrimaryBlogName(session);
 
-			const response = await fetch('https://www.tumblr.com/svc/post/update', {
+			const response = await fetch(`${origin}/api/v2/blog/${blogName}/posts`, {
 				method: 'POST',
 				credentials: 'include',
 				headers: {
-					'Content-Type': 'application/x-www-form-urlencoded',
+					...this.apiHeaders(session),
+					'content-type': 'application/json',
+					'x-csrf': session.csrfToken,
 				},
-				body: new URLSearchParams(postData).toString(),
+				body: JSON.stringify({
+					content: this.buildContent(data),
+					tags: data.tags?.join(',') ?? '',
+					state: 'published',
+				}),
 			});
 
 			if (!response.ok) {
-				return this.createErrorResult('Failed to post to Tumblr');
+				return this.createErrorResult(`Failed to post to Tumblr (${response.status})`);
 			}
 
-			const result = await response.json() as {response?: {id?: string}};
-			const postId = result.response?.id;
-
-			return this.createSuccessResult(postId ? `https://www.tumblr.com/posts/${postId}` : undefined);
+			const result = await response.json() as CreatePostResponse;
+			return this.createSuccessResult(`${origin}/${blogName}/${result.response.id_string}`);
 		} catch (error) {
 			return this.createErrorResult(error instanceof Error ? error.message : 'Unknown error');
 		}
 	}
 
 	supports(type: PostTypeString): boolean {
-		return ['text', 'link', 'image', 'video', 'photo', 'quote'].includes(type);
+		return ['text', 'link', 'photo'].includes(type);
 	}
 
 	detectPostType(data: PostData): PostTypeString {
@@ -63,81 +106,63 @@ export class TumblrService extends BaseService {
 		return 'text';
 	}
 
-	private async getFormKey(): Promise<string> {
-		const response = await fetch('https://www.tumblr.com/svc/secure/post_form_key', {
-			credentials: 'include',
-		});
-
+	private async getSession(): Promise<TumblrSession> {
+		const response = await fetch(`${origin}/`, {credentials: 'include'});
 		if (!response.ok) {
-			throw new Error('Failed to get form key');
+			throw new Error(`Failed to load Tumblr (${response.status})`);
 		}
 
-		const data = await response.json() as {
-			response: {
-				form_key: string;
-			};
-		};
-		// eslint-disable-next-line @typescript-eslint/naming-convention
-		const {form_key} = data.response;
-		return form_key;
+		return parseTumblrSession(await response.text());
 	}
 
-	private preparePostData(
-		data: PostData,
-		postType: PostTypeString,
-		formKey: string,
-	): Record<string, string> {
-		const baseData = {
-			// eslint-disable-next-line @typescript-eslint/naming-convention
-			form_key: formKey,
-			// eslint-disable-next-line @typescript-eslint/naming-convention
-			post_type: postType,
-			// eslint-disable-next-line @typescript-eslint/naming-convention
-			channel_id: 'main',
-			context: 'channel',
-			tags: data.tags?.join(',') ?? '',
-		};
+	private async getPrimaryBlogName(session: TumblrSession): Promise<string> {
+		const response = await fetch(`${origin}/api/v2/user/info`, {
+			credentials: 'include',
+			headers: this.apiHeaders(session),
+		});
+		if (!response.ok) {
+			throw new NotLoggedInError();
+		}
 
-		switch (postType) {
-			case 'text': {
-				return {
-					...baseData,
-					// eslint-disable-next-line @typescript-eslint/naming-convention
-					'post[one]': data.title,
-					// eslint-disable-next-line @typescript-eslint/naming-convention
-					'post[two]': data.description ?? '',
-				};
+		const {blogs} = (await response.json() as UserInfoResponse).response.user;
+		const primary = blogs.find(blog => blog.primary) ?? blogs[0];
+		if (!primary) {
+			throw new Error('No Tumblr blog found');
+		}
+
+		return primary.name;
+	}
+
+	private apiHeaders(session: TumblrSession): Record<string, string> {
+		return {authorization: `Bearer ${session.apiToken}`};
+	}
+
+	private buildContent(data: PostData): NpfBlock[] {
+		switch (this.detectPostType(data)) {
+			case 'photo': {
+				return [
+					{type: 'image', media: [{url: data.image}]},
+					{
+						type: 'text',
+						text: data.title,
+						formatting: [{
+							type: 'link', start: 0, end: [...data.title].length, url: data.url,
+						}],
+					},
+				];
 			}
 
 			case 'link': {
-				return {
-					...baseData,
-					// eslint-disable-next-line @typescript-eslint/naming-convention
-					'post[one]': data.url,
-					// eslint-disable-next-line @typescript-eslint/naming-convention
-					'post[two]': data.title,
-					// eslint-disable-next-line @typescript-eslint/naming-convention
-					'post[three]': data.description ?? '',
-				};
+				return [{
+					type: 'link', url: data.url, title: data.title, description: data.description ?? '',
+				}];
 			}
 
-			case 'photo': {
-				return {
-					...baseData,
-					// eslint-disable-next-line @typescript-eslint/naming-convention
-					'post[photoset_layout]': '',
-					// eslint-disable-next-line @typescript-eslint/naming-convention
-					'post[one]': data.image ?? '',
-					// eslint-disable-next-line @typescript-eslint/naming-convention
-					'post[two]': data.description ?? '',
-				};
-			}
-
-			case 'image':
-			case 'video':
-			case 'quote': {
-				// これらのタイプは現在基本データのみを送信
-				return baseData;
+			default: {
+				return [
+					{type: 'text', subtype: 'heading1', text: data.title},
+					{type: 'text', text: data.description ?? ''},
+				];
 			}
 		}
 	}
