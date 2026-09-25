@@ -21,6 +21,7 @@ export default defineConfig({
 	},
 	build: {
 		outDir: resolve(__dirname, 'dist'),
+		target: 'esnext',
 		emptyOutDir: true,
 		sourcemap: true,
 		rollupOptions: {

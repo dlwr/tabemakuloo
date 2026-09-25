@@ -1,5 +1,6 @@
 import browser from 'webextension-polyfill';
 import {connectReloadServer} from './reload-server.js';
+import {postToServices} from './post-to-services.js';
 import {TumblrService} from '@/services/tumblr-service.js';
 import type {PostData, PostResult} from '@/types';
 
@@ -40,24 +41,7 @@ class BackgroundService {
 	}
 
 	private async handlePostToServices(data: {postData: PostData; services: string[]}): Promise<{results: PostResult[]}> {
-		const {postData, services} = data;
-		const results: PostResult[] = [];
-
-		// For now, only handle Tumblr
-		if (services.includes('tumblr')) {
-			try {
-				const result = await this.tumblrService.post(postData);
-				results.push(result);
-			} catch (error) {
-				results.push({
-					service: 'Tumblr',
-					success: false,
-					error: error instanceof Error ? error.message : 'Unknown error',
-				});
-			}
-		}
-
-		return {results};
+		return {results: await postToServices(data.postData, data.services, {tumblr: this.tumblrService})};
 	}
 
 	private async handleCheckAuth(data: {service: string}): Promise<{authenticated: boolean}> {
