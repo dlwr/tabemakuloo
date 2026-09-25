@@ -1,4 +1,5 @@
 import browser from 'webextension-polyfill';
+import {connectReloadServer} from './reload-server.js';
 import {TumblrService} from '@/services/tumblr-service.js';
 import type {PostData, PostResult} from '@/types';
 
@@ -72,3 +73,9 @@ class BackgroundService {
 }
 
 void new BackgroundService();
+
+if (import.meta.env.MODE === 'development') {
+	connectReloadServer(() => {
+		chrome.runtime.reload();
+	});
+}

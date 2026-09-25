@@ -46,7 +46,7 @@ describe('extractPageData', () => {
 	});
 
 	it('works when serialized and run in the page by chrome.scripting.executeScript', () => {
-		// eslint-disable-next-line no-new-func, @typescript-eslint/no-implied-eval
+		// eslint-disable-next-line no-new-func
 		const serialized = new Function(`return (${extractPageData.toString()})()`) as typeof extractPageData;
 
 		expect(serialized().description).toBe('Meta description');
